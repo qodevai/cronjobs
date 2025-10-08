@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  # The cronjob scheduler
+  scheduler:
+    build: ..
+    container_name: cronjob-scheduler
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - HEALTH_PORT=8080
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  # Database backup worker
+  db-backup:
+    image: postgres:15-alpine
+    container_name: db-backup-worker
+    labels:
+      cronjob: |
+        FREQ=DAILY;BYHOUR=3;BYMINUTE=0 => pg_dump -U postgres mydb > /backups/backup-$(date +%Y%m%d).sql
+        FREQ=WEEKLY;BYDAY=SU;BYHOUR=4 => find /backups -mtime +30 -delete
+    volumes:
+      - ./backups:/backups
+    environment:
+      - POSTGRES_PASSWORD=secret
+    command: postgres
+
+  # Data sync worker
+  sync-worker:
+    image: python:3.12-slim
+    container_name: sync-worker
+    labels:
+      cronjob: |
+        FREQ=MINUTELY;INTERVAL=5 => python /app/sync_data.py
+        FREQ=HOURLY => python /app/cleanup_temp.py
+    volumes:
+      - ./sync_app:/app
+    command: sleep infinity
+
+  # Report generator
+  reporter:
+    image: python:3.12-slim
+    container_name: reporter
+    labels:
+      cronjob: |
+        FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9 => python /app/daily_report.py
+        FREQ=WEEKLY;BYDAY=MO;BYHOUR=10 => python /app/weekly_report.py
+        FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=8 => python /app/monthly_report.py
+    volumes:
+      - ./reports:/app
+    command: sleep infinity
+
+  # Health check monitor
+  monitor:
+    image: alpine:latest
+    container_name: health-monitor
+    labels:
+      cronjob: 'FREQ=MINUTELY;INTERVAL=1 => wget -q -O- http://scheduler:8080/health || echo "Health check failed!"'
+    command: sleep infinity

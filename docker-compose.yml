@@ -1,0 +1,20 @@
+services:
+  scheduler:
+    build: .
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  # Example worker with scheduled jobs
+  # Note: RRULE can be uppercase or lowercase
+  example-worker:
+    image: python:3.12-slim
+    profiles: ['e2e']
+    depends_on:
+      - scheduler
+    labels:
+      cronjob: |
+        freq=secondly;interval=1 => echo "Tick: $(date)" >> /cronjobs.log
+        FREQ=SECONDLY;INTERVAL=2 => echo "Tock: $(date)" >> /cronjobs.log
+    command: sh -c "touch /cronjobs.log && tail -f /cronjobs.log"
+    restart: unless-stopped

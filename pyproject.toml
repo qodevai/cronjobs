@@ -1,0 +1,121 @@
+[project]
+name = "cronjob-scheduler"
+version = "0.1.0"
+description = "A Docker-native cronjob scheduler using RRULE labels for flexible, event-driven task scheduling"
+readme = "README.md"
+authors = [
+    { name = "Jan Scheffler", email = "jan.scheffler@qodev.ai" }
+]
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["docker", "scheduler", "cronjob", "rrule", "task-scheduler", "automation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: System :: Monitoring",
+    "Topic :: System :: Systems Administration",
+    "Framework :: AsyncIO",
+]
+dependencies = [
+    "aiodocker>=0.21.0",
+    "python-dateutil>=2.8.2",
+]
+
+[project.urls]
+Homepage = "https://github.com/qodevai/cronjobs"
+Repository = "https://github.com/qodevai/cronjobs"
+Issues = "https://github.com/qodevai/cronjobs/issues"
+Documentation = "https://github.com/qodevai/cronjobs#readme"
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.6.0",
+    "pyright>=1.1.0",
+]
+
+[project.scripts]
+cronjob-scheduler = "cronjob_scheduler:main"
+
+[build-system]
+requires = ["uv_build>=0.9.0,<0.10.0"]
+build-backend = "uv_build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.format]
+skip-magic-trailing-comma = false
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # isort
+    "N",    # pep8-naming
+    "UP",   # pyupgrade
+    "ANN",  # flake8-annotations
+    "B",    # flake8-bugbear
+    "A",    # flake8-builtins
+    "COM",  # flake8-commas
+    "C4",   # flake8-comprehensions
+    "DTZ",  # flake8-datetimez
+    "EM",   # flake8-errmsg
+    "ISC",  # flake8-implicit-str-concat
+    "PIE",  # flake8-pie
+    "PT",   # flake8-pytest-style
+    "Q",    # flake8-quotes
+    "RET",  # flake8-return
+    "SIM",  # flake8-simplify
+    "ARG",  # flake8-unused-arguments
+    "PTH",  # flake8-use-pathlib
+    "PL",   # pylint
+    "RUF",  # ruff-specific rules
+]
+ignore = [
+    "COM812",   # Conflicts with formatter
+    "EM",       # Error messages - too strict for this project
+    "PLW2901",  # Loop variable overwritten - common pattern
+    "PLR2004",  # Magic values - too strict
+    "ANN204",   # Missing return type for __init__
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = [
+    "PLR2004",  # Magic value used in comparison
+    "ANN",      # Type annotations not required in tests
+    "ARG",      # Unused arguments OK in test fixtures
+    "PT",       # Pytest style warnings
+    "PLC0415",  # Import at top level
+    "RUF015",   # Prefer next(iter()) - less readable in tests
+]
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "basic"
+reportMissingImports = true
+reportMissingTypeStubs = false
+reportUnusedImport = true
+reportUnusedClass = true
+reportUnusedFunction = true
+reportUnusedVariable = true
+reportDuplicateImport = true
+reportAttributeAccessIssue = false  # aiodocker has incomplete type stubs
+reportGeneralTypeIssues = false     # aiodocker has incomplete type stubs
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--strict-markers"
