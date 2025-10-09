@@ -1,4 +1,4 @@
-FROM python:3.12-slim
+FROM python:3.12-slim AS base
 
 WORKDIR /app
 
@@ -11,8 +11,12 @@ COPY uv.lock .
 COPY README.md .
 COPY src/ src/
 
-# Install dependencies
-RUN uv sync --frozen --no-dev
+# Test stage - includes dev dependencies and tests
+FROM base AS test
+COPY tests/ tests/
+RUN uv sync --frozen --all-extras
 
-# Run the scheduler
+# Production stage - no dev dependencies
+FROM base AS production
+RUN uv sync --frozen --no-dev
 CMD ["uv", "run", "cronjob-scheduler"]

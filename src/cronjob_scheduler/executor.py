@@ -11,6 +11,42 @@ from cronjob_scheduler.models import Job
 logger = logging.getLogger(__name__)
 
 CONTAINER_NOT_FOUND_STATUS = 404
+EXEC_TIMEOUT_SECONDS = 30
+
+
+async def _stream_exec_output(exec_instance: object, job_id: str) -> list[str]:
+    """
+    Stream and collect output from exec instance.
+
+    Args:
+        exec_instance: Docker exec instance
+        job_id: Job ID for logging
+
+    Returns:
+        List of output lines
+
+    Raises:
+        TimeoutError: If execution exceeds timeout
+    """
+    output_lines = []
+    try:
+        async with asyncio.timeout(EXEC_TIMEOUT_SECONDS):
+            stream = exec_instance.start()
+            while True:
+                try:
+                    msg = await stream.read_out()
+                    if msg is None:
+                        break
+                    # msg is a tuple: (stream_type, data)
+                    if msg.data:
+                        output_lines.append(msg.data.decode("utf-8", errors="replace"))
+                except Exception:
+                    break
+    except TimeoutError:
+        logger.warning("Job %s execution timed out after %d seconds", job_id, EXEC_TIMEOUT_SECONDS)
+        raise
+
+    return output_lines
 
 
 async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
@@ -47,23 +83,10 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
             stderr=True,
         )
 
-        # Start execution and capture output (with timeout to avoid blocking forever)
-        output_lines = []
+        # Start execution and capture output
         try:
-            async with asyncio.timeout(30):  # 30 second timeout for job execution
-                stream = exec_instance.start()
-                while True:
-                    try:
-                        msg = await stream.read_out()
-                        if msg is None:
-                            break
-                        # msg is a tuple: (stream_type, data)
-                        if msg.data:
-                            output_lines.append(msg.data.decode("utf-8", errors="replace"))
-                    except Exception:
-                        break
+            output_lines = await _stream_exec_output(exec_instance, job.id)
         except TimeoutError:
-            logger.warning("Job %s execution timed out after 30 seconds", job.id)
             return -1
 
         # Extract exit code from result

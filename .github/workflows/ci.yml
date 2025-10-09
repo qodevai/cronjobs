@@ -9,39 +9,71 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.11", "3.12", "3.13"]
-    
+
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
-      with:
-        version: "latest"
-    
-    - name: Set up Python
-      run: uv python install ${{ matrix.python-version }}
-    
-    - name: Install dependencies
-      run: uv sync --all-extras
-    
+
+    - name: Build Docker image
+      run: docker build -t cronjob-scheduler:test --target test .
+
     - name: Run ruff check
-      run: uv run ruff check
-    
+      run: docker run --rm cronjob-scheduler:test uv run ruff check
+
     - name: Run ruff format check
-      run: uv run ruff format --check
-    
+      run: docker run --rm cronjob-scheduler:test uv run ruff format --check
+
     - name: Run type checking
-      run: uv run pyright
-    
+      run: docker run --rm cronjob-scheduler:test uv run pyright
+
     - name: Run tests with coverage
-      run: uv run pytest --cov=cronjob_scheduler --cov-report=xml --cov-report=term
-    
+      run: docker run --rm cronjob-scheduler:test uv run pytest --cov=cronjob_scheduler --cov-report=xml --cov-report=term
+
+    - name: Extract coverage report
+      run: |
+        docker create --name test-container cronjob-scheduler:test
+        docker cp test-container:/app/coverage.xml ./coverage.xml
+        docker rm test-container
+
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v4
-      if: matrix.python-version == '3.11'
       with:
         file: ./coverage.xml
         fail_ci_if_error: false
+
+  e2e:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Build production Docker image
+      run: docker build -t cronjob-scheduler:prod --target production .
+
+    - name: Start services with e2e profile
+      run: |
+        docker compose --profile e2e up -d
+        sleep 5
+
+    - name: Check scheduler is running
+      run: docker compose logs scheduler
+
+    - name: Wait for jobs to execute
+      run: |
+        echo "Waiting 10 seconds for cronjobs to execute..."
+        sleep 10
+
+    - name: Verify jobs executed
+      run: |
+        echo "Checking if cronjob created output file..."
+        docker compose exec -T example-worker cat /cronjobs.log
+        echo "Verifying multiple executions occurred..."
+        docker compose exec -T example-worker sh -c "test -f /cronjobs.log && wc -l /cronjobs.log"
+
+    - name: Show scheduler logs
+      if: always()
+      run: docker compose logs scheduler
+
+    - name: Cleanup
+      if: always()
+      run: docker compose --profile e2e down -v
