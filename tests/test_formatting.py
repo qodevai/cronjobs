@@ -82,6 +82,8 @@ def test_format_schedule_table_single_job():
     assert "test-container" in result
     assert "python test.py" in result
     assert "2025-01-13 10:00:00" in result
+    assert "FREQ=HOURLY" in result  # Shows RRULE, not DTSTART
+    assert "DTSTART" not in result  # Should not show DTSTART
     assert "┌" in result  # Has top border
     assert "└" in result  # Has bottom border
     assert "│" in result  # Has column separators

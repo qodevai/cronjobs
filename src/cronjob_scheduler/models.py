@@ -4,6 +4,8 @@ import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from dateutil.rrule import rrule as RRule
+from dateutil.rrule import rruleset as RRuleSet
 from dateutil.rrule import rrulestr
 
 logger = logging.getLogger(__name__)
@@ -20,7 +22,7 @@ class Job:
     id: str
     container_id: str
     container_name: str
-    rrule: any  # dateutil.rrule.rrule instance
+    rrule: RRule | RRuleSet
     command: str
     next_run: datetime
 

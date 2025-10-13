@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Schedule display now shows RRULE syntax instead of unhelpful DTSTART timestamp
+- Improved type annotations for `Job.rrule` field (changed from `any` to `RRule | RRuleSet`)
+
 ## [2.0.0] - 2025-10-13
 
 ### Changed (BREAKING)
