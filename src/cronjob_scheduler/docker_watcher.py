@@ -36,7 +36,15 @@ async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: 
 
     for container in containers:
         # Get container info as dict
-        container_info = await container.show()
+        try:
+            container_info = await container.show()
+        except aiodocker.exceptions.DockerError as e:
+            # Container may have been removed between listing and showing
+            if e.status == 404:
+                logger.debug("Container disappeared during sync, skipping")
+                continue
+            raise
+
         container_id = container_info["Id"]
         current_container_ids.add(container_id)
 

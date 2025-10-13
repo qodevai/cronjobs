@@ -2,6 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock
 
+import aiodocker.exceptions
 import pytest
 
 from cronjob_scheduler.docker_watcher import sync_jobs_from_containers
@@ -166,3 +167,45 @@ async def test_sync_handles_invalid_label(scheduler):
 
     # No jobs should be registered
     assert len(scheduler._jobs) == 0
+
+
+@pytest.mark.asyncio
+async def test_sync_handles_container_disappearing(scheduler, caplog):
+    """Test that sync handles containers disappearing during sync gracefully."""
+    import logging
+
+    caplog.set_level(logging.DEBUG)
+
+    mock_docker = MagicMock()
+
+    # Create a container that will disappear
+    mock_container_disappearing = MagicMock()
+    mock_container_disappearing.show = AsyncMock(
+        side_effect=aiodocker.exceptions.DockerError(404, {"message": "No such container: xyz123"})
+    )
+
+    # Create a normal container that will work
+    mock_container_normal = MagicMock()
+    mock_container_normal.show = AsyncMock(
+        return_value={
+            "Id": "container2",
+            "Name": "/normal-container",
+            "Config": {"Labels": {"cronjob": "FREQ=MINUTELY => echo test"}},
+        }
+    )
+
+    mock_docker.containers.list = AsyncMock(
+        return_value=[mock_container_disappearing, mock_container_normal]
+    )
+
+    # Sync jobs
+    await sync_jobs_from_containers(mock_docker, scheduler)
+
+    # Should handle the disappeared container gracefully
+    assert "Container disappeared during sync" in caplog.text
+
+    # Should still process the normal container
+    assert len(scheduler._jobs) == 1
+    job = list(scheduler._jobs.values())[0]
+    assert job.container_id == "container2"
+    assert job.command == "echo test"
