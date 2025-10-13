@@ -18,7 +18,7 @@ services:
     image: postgres:15-alpine
     container_name: db-backup-worker
     labels:
-      cronjob: |
+      ai.qodev.cronjobs: |
         FREQ=DAILY;BYHOUR=3;BYMINUTE=0 => pg_dump -U postgres mydb > /backups/backup-$(date +%Y%m%d).sql
         FREQ=WEEKLY;BYDAY=SU;BYHOUR=4 => find /backups -mtime +30 -delete
     volumes:
@@ -32,7 +32,7 @@ services:
     image: python:3.12-slim
     container_name: sync-worker
     labels:
-      cronjob: |
+      ai.qodev.cronjobs: |
         FREQ=MINUTELY;INTERVAL=5 => python /app/sync_data.py
         FREQ=HOURLY => python /app/cleanup_temp.py
     volumes:
@@ -44,7 +44,7 @@ services:
     image: python:3.12-slim
     container_name: reporter
     labels:
-      cronjob: |
+      ai.qodev.cronjobs: |
         FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9 => python /app/daily_report.py
         FREQ=WEEKLY;BYDAY=MO;BYHOUR=10 => python /app/weekly_report.py
         FREQ=MONTHLY;BYMONTHDAY=1;BYHOUR=8 => python /app/monthly_report.py
@@ -57,5 +57,5 @@ services:
     image: alpine:latest
     container_name: health-monitor
     labels:
-      cronjob: 'FREQ=MINUTELY;INTERVAL=1 => wget -q -O- http://scheduler:8080/health || echo "Health check failed!"'
+      ai.qodev.cronjobs: 'FREQ=MINUTELY;INTERVAL=1 => wget -q -O- http://scheduler:8080/health || echo "Health check failed!"'
     command: sleep infinity

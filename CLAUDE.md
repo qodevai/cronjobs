@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Docker-native cronjob scheduler that uses RRULE (RFC 5545 recurrence rules) instead of traditional cron syntax. It monitors Docker containers for `cronjob` labels and executes scheduled tasks in those containers using `docker exec`.
+This is a Docker-native cronjob scheduler that uses RRULE (RFC 5545 recurrence rules) instead of traditional cron syntax. It monitors Docker containers for `ai.qodev.cronjobs` labels and executes scheduled tasks in those containers using `docker exec`.
 
 **Key characteristics:**
 - Event-driven, async-first architecture (asyncio)
@@ -107,7 +107,7 @@ uv sync
 
 1. **models.py** - Data structures and label parsing
    - `Job`: Dataclass representing a scheduled job
-   - `parse_cronjob_label()`: Parses `cronjob` label format (`RRULE => command`)
+   - `parse_cronjob_label()`: Parses `ai.qodev.cronjobs` label format (`RRULE => command`)
    - `ANCHOR`: Fixed datetime (2025-01-01 00:00:00 UTC) used for all schedule calculations
 
 2. **scheduler.py** - Event-driven job scheduling
@@ -133,7 +133,7 @@ uv sync
 
 ### Execution Flow
 
-1. On startup, `docker_watcher` scans all running containers for `cronjob` labels
+1. On startup, `docker_watcher` scans all running containers for `ai.qodev.cronjobs` labels
 2. Each job is parsed and registered with the `Scheduler`
 3. `Scheduler` calculates `next_run` time for each job using its RRULE
 4. `run_scheduler_loop()` waits for jobs to become due (event-driven sleep)
@@ -153,11 +153,11 @@ uv sync
 
 ## Label Format
 
-Containers are scheduled using a `cronjob` label:
+Containers are scheduled using an `ai.qodev.cronjobs` label:
 
 ```yaml
 labels:
-  cronjob: |
+  ai.qodev.cronjobs: |
     RRULE => command
     RRULE => another command
 ```
@@ -168,6 +168,8 @@ Examples:
 - `FREQ=MINUTELY;INTERVAL=5 => python sync.py`
 - `FREQ=DAILY;BYHOUR=2;BYMINUTE=0 => python cleanup.py`
 - `FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=9 => python report.py`
+
+**Backward compatibility:** The label name is configurable via the `WATCH_LABEL` environment variable. To use the old label name, set `WATCH_LABEL=cronjob`.
 
 ## Testing Approach
 

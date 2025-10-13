@@ -34,7 +34,7 @@ Edit `docker-compose.yml` and add a new service:
 my-worker:
   image: alpine:latest
   labels:
-    cronjob: |
+    ai.qodev.cronjobs: |
       FREQ=MINUTELY;INTERVAL=1 => echo "Hello from my worker! $(date)" >> /tmp/output.log
   command: sleep infinity
 ```
@@ -95,7 +95,7 @@ Add multiple jobs to one container by using newlines:
 
 ```yaml
 labels:
-  cronjob: |
+  ai.qodev.cronjobs: |
     FREQ=MINUTELY;INTERVAL=5 => python sync.py
     FREQ=HOURLY => python cleanup.py
     FREQ=DAILY;BYHOUR=3 => python backup.py
@@ -105,7 +105,7 @@ labels:
 
 ### Check if scheduler detected your container:
 
-The scheduler logs will show when it finds containers with cronjob labels.
+The scheduler logs will show when it finds containers with ai.qodev.cronjobs labels.
 
 ### Check if job is executing:
 

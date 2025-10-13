@@ -12,7 +12,7 @@ from cronjob_scheduler.scheduler import Scheduler
 logger = logging.getLogger(__name__)
 
 # Label to watch for cronjobs (can be overridden for testing)
-WATCH_LABEL = os.getenv("WATCH_LABEL", "cronjob")
+WATCH_LABEL = os.getenv("WATCH_LABEL", "ai.qodev.cronjobs")
 
 
 async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: Scheduler) -> None:

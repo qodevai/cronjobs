@@ -25,7 +25,7 @@ async def test_sync_jobs_from_containers_with_label(scheduler):
     mock_container.show = AsyncMock(
         return_value={
             "Id": "container123",
-            "Config": {"Labels": {"cronjob": "FREQ=HOURLY => python test.py"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "FREQ=HOURLY => python test.py"}},
         }
     )
 
@@ -69,7 +69,7 @@ async def test_sync_jobs_from_containers_multiple_jobs(scheduler):
             "Id": "container123",
             "Config": {
                 "Labels": {
-                    "cronjob": """FREQ=HOURLY => python test.py
+                    "ai.qodev.cronjobs": """FREQ=HOURLY => python test.py
 FREQ=DAILY;BYHOUR=2 => python cleanup.py"""
                 }
             },
@@ -94,7 +94,7 @@ async def test_sync_jobs_removes_old_jobs(scheduler):
     mock_container1.show = AsyncMock(
         return_value={
             "Id": "container123",
-            "Config": {"Labels": {"cronjob": "FREQ=HOURLY => python test.py"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "FREQ=HOURLY => python test.py"}},
         }
     )
 
@@ -122,7 +122,7 @@ async def test_sync_jobs_from_multiple_containers(scheduler):
     mock_container1.show = AsyncMock(
         return_value={
             "Id": "container1",
-            "Config": {"Labels": {"cronjob": "FREQ=HOURLY => python test1.py"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "FREQ=HOURLY => python test1.py"}},
         }
     )
 
@@ -130,7 +130,7 @@ async def test_sync_jobs_from_multiple_containers(scheduler):
     mock_container2.show = AsyncMock(
         return_value={
             "Id": "container2",
-            "Config": {"Labels": {"cronjob": "FREQ=DAILY => python test2.py"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "FREQ=DAILY => python test2.py"}},
         }
     )
 
@@ -156,7 +156,7 @@ async def test_sync_handles_invalid_label(scheduler):
     mock_container.show = AsyncMock(
         return_value={
             "Id": "container123",
-            "Config": {"Labels": {"cronjob": "invalid format"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "invalid format"}},
         }
     )
 
@@ -190,7 +190,7 @@ async def test_sync_handles_container_disappearing(scheduler, caplog):
         return_value={
             "Id": "container2",
             "Name": "/normal-container",
-            "Config": {"Labels": {"cronjob": "FREQ=MINUTELY => echo test"}},
+            "Config": {"Labels": {"ai.qodev.cronjobs": "FREQ=MINUTELY => echo test"}},
         }
     )
 
