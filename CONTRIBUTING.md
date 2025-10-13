@@ -10,6 +10,7 @@ Contributions are made through [pull requests](https://help.github.com/articles/
 - [x] [Write tests](#writing-tests) for new functionality
 - [x] [Run tests](#running-tests) and check that they pass
 - [x] Update documentation if needed
+- [x] Update [CHANGELOG.md](CHANGELOG.md) (add your changes to the Unreleased section)
 
 _Please reach out before starting work on a large contribution._ Get in touch at [GitHub issues](https://github.com/qodevai/cronjobs/issues).
 
@@ -370,6 +371,7 @@ Use descriptive names with type prefixes matching commit types:
    - ✅ All tests pass locally
    - ✅ Code is linted and formatted
    - ✅ Documentation is updated
+   - ✅ CHANGELOG.md is updated (add to Unreleased section)
    - ✅ Commit messages follow conventions
    - ✅ Branch is up to date with main
 
