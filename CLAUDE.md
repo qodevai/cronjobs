@@ -16,38 +16,41 @@ This is a Docker-native cronjob scheduler that uses RRULE (RFC 5545 recurrence r
 
 ## Development Commands
 
-### Testing
+**Quick Start:**
 ```bash
-# Run all tests
-uv run pytest
-
-# Run tests with verbose output
-uv run pytest -v
-
-# Run specific test file
-uv run pytest tests/test_scheduler.py
-
-# Run specific test
-uv run pytest tests/test_scheduler.py::test_register_job_calculates_next_run
-
-# Run with coverage
-uv run pytest --cov=cronjob_scheduler --cov-report=html
+make help          # Show all available commands
+make install       # Install all dependencies
+make install-hooks # Install pre-commit hooks (recommended!)
+make check         # Run all quality checks
+make test          # Run tests with coverage
 ```
 
-### Code Quality
+**For comprehensive command documentation, see [CONTRIBUTING.md](CONTRIBUTING.md).**
+
+### Key Commands (Most Used)
+
 ```bash
-# Format code
-uv run ruff format
+# Development workflow
+make check         # Lint, format-check, typecheck, typos (run before commit)
+make test          # Run tests with coverage
+make dev           # Start docker-compose environment
+make lint-fix      # Auto-fix linting issues
 
-# Lint code
-uv run ruff check
-
-# Fix auto-fixable linting issues
-uv run ruff check --fix
-
-# Type checking
-uv run pyright
+# Direct uv commands (when you need more control)
+uv run pytest tests/test_scheduler.py      # Run specific test file
+uv run pytest -k test_name                 # Run tests matching pattern
+uv run pytest --durations=10               # Show slowest tests
+uv run ruff check --fix                    # Fix auto-fixable issues
 ```
+
+### Pre-commit Hooks
+
+Install once, runs automatically on every commit:
+```bash
+make install-hooks
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md#pre-commit-hooks) for details.
 
 ### Local Testing with Docker
 ```bash
@@ -252,14 +255,29 @@ Set via `LOG_LEVEL` environment variable in main.py:66. Format is: `timestamp [l
 
 ### CI Workflow (`.github/workflows/ci.yml`)
 - **Triggers**: Push to main, all PRs
-- **Steps**:
-  1. Build test stage Docker image (debian-slim based for pyright)
-  2. Run ruff check and format validation
-  3. Run pyright type checking (requires Node.js/glibc)
-  4. Run pytest with coverage
-  5. Upload coverage to Codecov
+- **Path filtering**: Only runs when relevant files change (src/, tests/, pyproject.toml, Dockerfile, etc.)
+- **Jobs**:
+  1. **changes** - Detects which files changed to skip unnecessary builds
+  2. **test** - Runs all code quality checks and tests:
+     - Build test stage Docker image (debian-slim based for pyright)
+     - Run ruff check and format validation
+     - Run pyright type checking (requires Node.js/glibc)
+     - Run pytest with coverage and duration tracking (`--durations=10`)
+     - Upload coverage to Codecov
+  3. **e2e** - End-to-end integration tests with docker-compose
 - **Important**: CI uses the test stage which is debian-slim based, NOT Alpine
 - **Why**: pyright is a required CI step and needs Node.js with glibc
+- **Optimizations**:
+  - Path filtering prevents unnecessary CI runs on docs-only changes
+  - Job timeouts prevent hanging tests
+  - Emojis in step names for better readability
+  - Automatic cancellation of outdated workflow runs
+
+### Typos Workflow (`.github/workflows/typos.yml`)
+- **Triggers**: Push to main, all PRs
+- **Purpose**: Automatically check for typos in code, docs, and comments
+- **Uses**: `crate-ci/typos` action with configuration from `pyproject.toml`
+- **Benefits**: Catches spelling errors before they reach production
 
 ### Docker Publish (`.github/workflows/docker-publish.yml`)
 - **Triggers**: Push to main, version tags (`v*`)

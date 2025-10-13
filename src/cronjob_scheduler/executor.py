@@ -148,13 +148,11 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
         )
         return -1
 
-    except Exception as e:
+    except Exception:
         # Any other error during execution
-        logger.error(
-            "Unexpected error executing job %s in container %s: %s",
+        logger.exception(
+            "Unexpected error executing job %s in container %s",
             job.id,
             container_id_short,
-            e,
-            exc_info=True,
         )
         return -1
