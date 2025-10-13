@@ -7,9 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2025-10-13
+
+### Changed (BREAKING)
+- **Changed default label from `cronjob` to `ai.qodev.cronjobs`** for better Docker naming conventions
+  - Follows reverse DNS notation as per Docker documentation
+  - Label name remains configurable via `WATCH_LABEL` environment variable
+  - Users can continue using `cronjob` by setting `WATCH_LABEL=cronjob`
+
+### Added
+- Developer experience improvements:
+  - Comprehensive Makefile with 15+ commands for common tasks
+  - Pre-commit hooks with auto-formatting and linting
+  - `make help` command for command discovery
+  - Quick setup commands: `make install`, `make check`, `make test`
+- Enhanced CI/CD:
+  - Added typos workflow for spell checking
+  - Enhanced CI with better path filtering and optimizations
+  - Codecov integration for test coverage tracking
+  - Duration tracking for slow tests (`--durations=10`)
+- New formatting utilities module (`formatting.py`):
+  - Human-readable duration formatting
+  - Next run time calculations with RRULE support
+  - Comprehensive test coverage for formatting logic
+- Documentation improvements:
+  - Added CONTRIBUTING.md with detailed development guidelines
+  - Enhanced CLAUDE.md with Alpine migration learnings and git conventions
+  - Added pre-commit hook documentation
+  - Updated all examples to use new label name
+
 ### Changed
 - Migrated Docker base image from `python:3.12-slim` to `python:3.12-alpine`
 - Reduced Docker image size by ~24 MB (from 75 MB to 51 MB)
+- Improved logging output format for better readability
+- Enhanced test coverage with new formatting tests
 
 ### Security
 - Fixed HIGH severity OpenSSL vulnerability (CVE-2025-9230)
@@ -61,5 +92,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker socket read-only access
 - Minimal dependencies (aiodocker, python-dateutil)
 
+[2.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.0.0
 [1.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v1.0.0
 [0.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v0.1.0
