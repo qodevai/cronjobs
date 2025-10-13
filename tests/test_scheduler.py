@@ -21,6 +21,7 @@ def create_test_job(job_id: str, rrule_obj, command: str = "test") -> Job:
     return Job(
         id=job_id,
         container_id="container123",
+        container_name="test-container",
         rrule=rrule_obj,
         command=command,
         next_run=ANCHOR,  # Will be set by scheduler

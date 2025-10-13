@@ -19,12 +19,13 @@ class Job:
 
     id: str
     container_id: str
+    container_name: str
     rrule: any  # dateutil.rrule.rrule instance
     command: str
     next_run: datetime
 
 
-def parse_cronjob_label(label: str, container_id: str) -> list[Job]:
+def parse_cronjob_label(label: str, container_id: str, container_name: str) -> list[Job]:
     """
     Parse cronjob label into Job objects.
 
@@ -34,6 +35,7 @@ def parse_cronjob_label(label: str, container_id: str) -> list[Job]:
     Args:
         label: The cronjob label value
         container_id: Container ID this job belongs to
+        container_name: Container name for display
 
     Returns:
         List of Job objects
@@ -88,6 +90,7 @@ def parse_cronjob_label(label: str, container_id: str) -> list[Job]:
         job = Job(
             id=job_id,
             container_id=container_id,
+            container_name=container_name,
             rrule=rule,
             command=command,
             next_run=ANCHOR,  # Placeholder, scheduler will set this
