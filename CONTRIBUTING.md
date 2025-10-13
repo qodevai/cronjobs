@@ -84,6 +84,77 @@ async def test_new_feature(scheduler):
 - Keep functions focused and small
 - Add docstrings to public functions
 
+## Git Conventions
+
+### Commit Messages
+
+Follow the [Conventional Commits](https://www.conventionalcommits.org/) format:
+
+```
+<type>(<scope>): <subject>
+```
+
+**Commit Types:**
+- `feat`: New feature or functionality
+- `fix`: Bug fix
+- `docs`: Documentation only changes
+- `chore`: Maintenance (dependencies, configs, build)
+- `refactor`: Code changes that neither fix bugs nor add features
+- `test`: Adding or updating tests
+- `ci`: CI/CD configuration changes
+- `perf`: Performance improvements
+
+**Good Examples:**
+```bash
+feat(scheduler): add support for timezone-aware schedules
+fix(docker_watcher): handle race condition on container removal
+docs: update CLAUDE.md with development guidelines
+chore(deps): bump aiodocker from 0.23.0 to 0.24.0
+refactor(models): simplify RRULE parsing logic
+test(executor): add test for command timeout handling
+ci: integrate Docker Scout vulnerability scanning
+```
+
+**Bad Examples:**
+```bash
+update stuff                    # Too vague
+Fixed bug                       # No type prefix, no description
+Add new feature to scheduler    # No type prefix
+WIP                            # Not descriptive
+```
+
+### Branch Naming
+
+Use descriptive names with type prefixes matching commit types:
+
+```
+<type>/<description-in-kebab-case>
+```
+
+**Examples:**
+- `feat/add-timezone-support`
+- `fix/container-race-condition`
+- `docs/add-development-guidelines`
+- `chore/update-python-deps`
+- `refactor/simplify-rrule-parser`
+- `test/add-e2e-tests`
+- `security/fix-cve-2024-xxxx`
+
+### Workflow
+
+1. **Create branch**: `git checkout -b feat/your-feature-name`
+2. **Make changes**: Write code and tests
+3. **Run quality checks**:
+   ```bash
+   uv run ruff check
+   uv run ruff format
+   uv run pyright
+   uv run pytest
+   ```
+4. **Commit**: `git commit -m "feat(scope): description"`
+5. **Push**: `git push -u origin feat/your-feature-name`
+6. **Create PR**: Use conventional commit format for PR title
+
 ## Manual Testing
 
 ### Local Docker Testing
