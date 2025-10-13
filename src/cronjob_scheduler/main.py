@@ -28,8 +28,8 @@ async def run_scheduler_loop(scheduler: Scheduler, docker_client: aiodocker.Dock
         tasks.discard(task)
         try:
             task.result()  # Raise exception if task failed
-        except Exception as e:
-            logger.error("Task failed with exception: %s", e, exc_info=True)
+        except Exception:
+            logger.exception("Task failed with exception")
 
     while True:
         # Wait for jobs to be due

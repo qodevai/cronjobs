@@ -1,0 +1,16 @@
+coverage:
+  status:
+    project:
+      default:
+        # Target coverage based on previous commit
+        target: auto
+        # Allow up to 2% drop from previous commit
+        threshold: 2%
+    patch:
+      default:
+        target: auto
+        # Allow up to 10% drop for new code patches
+        threshold: 10%
+  ignore:
+    - "tests/**"
+    - "examples/**"
