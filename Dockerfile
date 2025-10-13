@@ -32,4 +32,4 @@ RUN uv sync --frozen --all-extras
 # Production stage - no dev dependencies
 FROM base AS production
 RUN uv sync --frozen --no-dev
-CMD ["uv", "run", "cronjob-scheduler"]
+CMD ["python", "-m", "cronjob_scheduler.main"]
