@@ -36,7 +36,7 @@ services:
   worker:
     image: python:3.12-slim
     labels:
-      cronjob: |
+      ai.qodev.cronjobs: |
         FREQ=MINUTELY;INTERVAL=5 => echo "Running every 5 minutes"
         FREQ=HOURLY => python /app/hourly_task.py
     command: sleep infinity
@@ -62,10 +62,10 @@ docker-compose up -d
 
 ### Label Format
 
-Add jobs to containers using the `cronjob` label:
+Add jobs to containers using the `ai.qodev.cronjobs` label:
 
 ```
-cronjob: '<RRULE> => <command>'
+ai.qodev.cronjobs: '<RRULE> => <command>'
 ```
 
 **RRULE can be uppercase, lowercase, or mixed case** - all are supported.
@@ -74,19 +74,19 @@ cronjob: '<RRULE> => <command>'
 
 ```
 # Every 5 minutes (uppercase)
-cronjob: 'FREQ=MINUTELY;INTERVAL=5 => python sync.py'
+ai.qodev.cronjobs: 'FREQ=MINUTELY;INTERVAL=5 => python sync.py'
 
 # Every 5 minutes (lowercase works too!)
-cronjob: 'freq=minutely;interval=5 => python sync.py'
+ai.qodev.cronjobs: 'freq=minutely;interval=5 => python sync.py'
 
 # Daily at 2 AM
-cronjob: 'FREQ=DAILY;BYHOUR=2;BYMINUTE=0 => python cleanup.py'
+ai.qodev.cronjobs: 'FREQ=DAILY;BYHOUR=2;BYMINUTE=0 => python cleanup.py'
 
 # Weekdays at 9 AM
-cronjob: 'FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9 => python report.py'
+ai.qodev.cronjobs: 'FREQ=DAILY;BYDAY=MO,TU,WE,TH,FR;BYHOUR=9 => python report.py'
 
 # Multiple jobs (newline-separated)
-cronjob: |
+ai.qodev.cronjobs: |
   FREQ=HOURLY => python hourly.py
   FREQ=DAILY;BYHOUR=3 => python daily.py
 ```
@@ -149,7 +149,7 @@ curl http://localhost:8080/health
 
 ### Execution Flow
 
-1. Scheduler scans containers for `cronjob` labels on startup
+1. Scheduler scans containers for `ai.qodev.cronjobs` labels on startup
 2. Parses RRULE and calculates next run time for each job
 3. Sleeps until next job is due (event-driven, no polling)
 4. When job is due, fires it via `docker exec` (non-blocking)
@@ -206,7 +206,7 @@ services:
 
 4. **Check if scheduler detected your container:**
    - With `LOG_LEVEL=INFO`, you'll see: `Found X job(s) in container ...`
-   - If not shown, verify the `cronjob` label is set correctly
+   - If not shown, verify the `ai.qodev.cronjobs` label is set correctly
 
 ### Invalid label errors
 
@@ -216,7 +216,7 @@ If you see "Invalid cronjob label" warnings:
 - For multi-line labels, use YAML's `|` syntax:
   ```yaml
   labels:
-    cronjob: |
+    ai.qodev.cronjobs: |
       FREQ=HOURLY => command1
       FREQ=DAILY => command2
   ```

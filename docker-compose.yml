@@ -15,7 +15,7 @@ services:
     depends_on:
       - scheduler
     labels:
-      cronjob: |
+      ai.qodev.cronjobs: |
         freq=secondly;interval=1 => echo "Tick: $(date)" >> /cronjobs.log
         FREQ=SECONDLY;INTERVAL=2 => echo "Tock: $(date)" >> /cronjobs.log
     command: sh -c "touch /cronjobs.log && tail -f /cronjobs.log"
