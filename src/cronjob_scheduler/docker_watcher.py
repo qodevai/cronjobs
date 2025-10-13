@@ -15,6 +15,20 @@ logger = logging.getLogger(__name__)
 WATCH_LABEL = os.getenv("WATCH_LABEL", "cronjob")
 
 
+def _get_container_display_name(container_info: dict) -> str:
+    """
+    Extract container name for display, fallback to short ID.
+
+    Args:
+        container_info: Container info dictionary from Docker API
+
+    Returns:
+        Container name (without leading /) or short container ID
+    """
+    name = container_info.get("Name", "").lstrip("/")
+    return name or container_info["Id"][:12]
+
+
 async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: Scheduler) -> None:
     """
     Sync jobs from all running containers with cronjob labels.
@@ -26,6 +40,9 @@ async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: 
         docker_client: aiodocker.Docker client instance
         scheduler: Scheduler instance to update
     """
+    # Track job IDs before sync to detect changes
+    job_ids_before = scheduler.get_job_ids()
+
     # Get all running containers
     containers = await docker_client.containers.list()
     logger.debug("Found %d running containers", len(containers))
@@ -55,17 +72,21 @@ async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: 
         if not cronjob_label:
             continue
 
-        # Get container name for better logging
-        container_name = container_info.get("Name", "").lstrip("/")
+        # Get container name for logging and display
+        container_name = _get_container_display_name(container_info)
 
         # Parse jobs from label
         try:
-            jobs = parse_cronjob_label(cronjob_label, container_id=container_id)
+            jobs = parse_cronjob_label(
+                cronjob_label,
+                container_id=container_id,
+                container_name=container_name,
+            )
             if jobs:
-                logger.info(
+                logger.debug(
                     "Found %d job(s) in container %s (%s)",
                     len(jobs),
-                    container_name or container_id[:12],
+                    container_name,
                     container_id[:12],
                 )
                 for job in jobs:
@@ -75,39 +96,31 @@ async def sync_jobs_from_containers(docker_client: aiodocker.Docker, scheduler: 
             # Invalid label format - skip this container
             logger.warning(
                 "Invalid cronjob label in container %s (%s): %s",
-                container_name or container_id[:12],
+                container_name,
                 container_id[:12],
                 e,
             )
             continue
 
     # Remove jobs from containers that no longer exist
-    jobs_to_remove = [
-        job_id
-        for job_id, job in scheduler._jobs.items()
-        if job.container_id not in current_container_ids
-    ]
+    jobs_to_remove = scheduler.get_jobs_by_container(current_container_ids)
 
-    if jobs_to_remove:
-        logger.info("Removing %d job(s) from stopped/removed containers", len(jobs_to_remove))
     for job_id in jobs_to_remove:
         logger.debug("Unregistering job: %s", job_id)
         scheduler.unregister_job(job_id)
 
     # Register new jobs (scheduler will handle duplicates by job_id)
-    new_job_count = 0
+    existing_job_ids = scheduler.get_job_ids()
     for job in new_jobs:
         # Only register if not already registered
-        if job.id not in scheduler._jobs:
+        if job.id not in existing_job_ids:
             logger.debug("Registering new job: %s (next run: %s)", job.id, job.next_run)
             scheduler.register_job(job)
-            new_job_count += 1
 
-    if new_job_count > 0:
-        logger.info("Registered %d new job(s)", new_job_count)
-
-    total_jobs = len(scheduler._jobs)
-    logger.info("Total active jobs: %d", total_jobs)
+    # Log schedule table if job IDs changed
+    job_ids_after = scheduler.get_job_ids()
+    if job_ids_before != job_ids_after:
+        scheduler.log_schedule()
 
 
 async def watch_containers(docker_client: aiodocker.Docker, scheduler: Scheduler) -> None:
@@ -141,7 +154,7 @@ async def watch_containers(docker_client: aiodocker.Docker, scheduler: Scheduler
             action = event.get("Action")
             if action in ("start", "stop", "die", "destroy"):
                 container_id = event.get("id", "unknown")[:12]
-                logger.info("Container event: %s (%s), re-syncing jobs", action, container_id)
+                logger.debug("Container event: %s (%s), re-syncing jobs", action, container_id)
                 # Re-sync all jobs
                 await sync_jobs_from_containers(docker_client, scheduler)
 

@@ -102,7 +102,7 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
                     "Job %s completed successfully (exit code: %d). Output: %s",
                     job.id,
                     exit_code,
-                    output[:500],  # Limit output to 500 chars
+                    output[:200],  # Limit output to 200 chars
                 )
             else:
                 logger.info(
@@ -115,7 +115,7 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
                 "Job %s failed with exit code %d. Output: %s",
                 job.id,
                 exit_code,
-                output[:500],  # Limit output to 500 chars
+                output[:200],  # Limit output to 200 chars
             )
 
         return exit_code

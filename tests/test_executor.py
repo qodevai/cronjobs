@@ -12,7 +12,14 @@ from cronjob_scheduler.models import ANCHOR, Job
 def create_test_job(job_id: str = "job1", command: str = "echo test") -> Job:
     """Helper to create a test job."""
     rule = rrule(HOURLY, dtstart=ANCHOR)
-    return Job(id=job_id, container_id="container123", rrule=rule, command=command, next_run=ANCHOR)
+    return Job(
+        id=job_id,
+        container_id="container123",
+        container_name="test-container",
+        rrule=rule,
+        command=command,
+        next_run=ANCHOR,
+    )
 
 
 @pytest.mark.asyncio

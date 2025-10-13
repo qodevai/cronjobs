@@ -4,6 +4,7 @@ import asyncio
 import logging
 from datetime import UTC, datetime
 
+from cronjob_scheduler.formatting import format_next_execution, format_schedule_table
 from cronjob_scheduler.models import Job
 
 logger = logging.getLogger(__name__)
@@ -15,6 +16,38 @@ class Scheduler:
     def __init__(self):
         self._jobs: dict[str, Job] = {}
         self._next_due = asyncio.Event()
+
+    def get_job_ids(self) -> set[str]:
+        """
+        Return set of current job IDs.
+
+        Returns:
+            Set of job IDs currently scheduled
+        """
+        return set(self._jobs.keys())
+
+    def get_jobs_by_container(self, container_ids: set[str]) -> list[str]:
+        """
+        Get job IDs that do NOT belong to the given container IDs.
+
+        Args:
+            container_ids: Set of container IDs to check against
+
+        Returns:
+            List of job IDs for containers not in the provided set
+        """
+        return [
+            job_id for job_id, job in self._jobs.items() if job.container_id not in container_ids
+        ]
+
+    def log_schedule(self) -> None:
+        """Log the current schedule table at INFO level."""
+        table = format_schedule_table(self._jobs)
+        logger.info("\n%s", table)
+
+        next_exec = format_next_execution(self._jobs)
+        if next_exec:
+            logger.info(next_exec)
 
     def register_job(self, job: Job) -> None:
         """
@@ -62,21 +95,15 @@ class Scheduler:
                 if job.next_run <= now:
                     time_diff = (now - job.next_run).total_seconds()
                     if time_diff > 1:
-                        logger.info(
+                        logger.debug(
                             "Job %s is overdue by %.1f seconds (was scheduled for %s)",
                             job.id,
                             time_diff,
                             job.next_run,
                         )
-                    else:
-                        logger.info(
-                            "Job %s is due (scheduled for %s)",
-                            job.id,
-                            job.next_run,
-                        )
                     # Calculate next run BEFORE returning to runner
                     next_occurrence = job.rrule.after(now)
-                    logger.info(
+                    logger.debug(
                         "Job %s next execution scheduled for %s",
                         job.id,
                         next_occurrence,

@@ -148,6 +148,158 @@ uv sync
 
 **Stateless design**: No database or persistent storage. All state is rebuilt from container labels on startup and after container events.
 
+## Code Quality Standards
+
+This project prioritizes clean, maintainable code that follows industry best practices. All contributions must adhere to these principles:
+
+### KISS (Keep It Simple, Stupid)
+
+**Philosophy**: Favor simple, straightforward solutions over clever or complex ones.
+
+**Guidelines**:
+- Use the most direct approach to solve a problem
+- Avoid premature optimization or over-engineering
+- If a feature can be implemented in 10 lines instead of 50, choose 10
+- Simple code is easier to test, debug, and maintain
+
+**Examples**:
+```python
+# GOOD - Simple ID comparison
+job_ids_before = scheduler.get_job_ids()
+# ... do work ...
+if job_ids_before != scheduler.get_job_ids():
+    log_changes()
+
+# BAD - Complex signature computation
+def _compute_job_signature(jobs):
+    return {(j.id, j.container_id, j.command, str(j.rrule), ...) for j in jobs}
+```
+
+### DRY (Don't Repeat Yourself)
+
+**Philosophy**: Every piece of knowledge should have a single, authoritative representation.
+
+**Guidelines**:
+- Extract repeated logic into helper functions
+- Use constants for magic numbers/strings
+- Create shared utilities for common patterns
+- If you copy-paste code, refactor it into a function
+
+**Examples**:
+```python
+# GOOD - Single helper function
+def _get_container_display_name(container_info: dict) -> str:
+    name = container_info.get("Name", "").lstrip("/")
+    return name or container_info["Id"][:12]
+
+# BAD - Repeated logic
+container_name or container_id[:12]  # Appears in 3 places
+text[:30-3] + "..." if len(text) > 30 else text  # Repeated pattern
+```
+
+### Clean Code Principles
+
+**Philosophy**: Code should be readable, maintainable, and self-documenting.
+
+**Guidelines**:
+1. **Separation of Concerns**: Each module/function has one clear responsibility
+   - `scheduler.py` handles scheduling logic only
+   - `formatting.py` handles display formatting only
+   - Don't mix business logic with presentation logic
+
+2. **Proper Encapsulation**: Never access private attributes from outside a class
+   ```python
+   # GOOD - Public API
+   scheduler.get_job_ids()
+   scheduler.get_jobs_by_container(ids)
+
+   # BAD - Direct access to internals
+   scheduler._jobs  # Never do this from another module
+   len(scheduler._jobs)  # Use public method instead
+   ```
+
+3. **Meaningful Names**: Variables, functions, and classes should reveal intent
+   ```python
+   # GOOD
+   def _get_container_display_name(container_info: dict) -> str:
+
+   # BAD
+   def get_name(c: dict) -> str:
+   ```
+
+4. **Small Functions**: Each function should do one thing well
+   - Aim for functions under 20 lines
+   - If a function is complex, break it into smaller helpers
+
+5. **No Magic Numbers**: Use named constants
+   ```python
+   # GOOD
+   COL_CONTAINER = 20
+   COL_SCHEDULE = 30
+
+   # BAD
+   "..." if len(text) > 30 else text  # What is 30?
+   ```
+
+6. **Type Hints**: Use type annotations for function signatures
+   ```python
+   def parse_cronjob_label(
+       label: str,
+       container_id: str,
+       container_name: str
+   ) -> list[Job]:
+   ```
+
+### Pythonic Code
+
+**Philosophy**: Write code that follows Python idioms and conventions.
+
+**Guidelines**:
+- Use list/dict comprehensions for simple transformations
+- Prefer `for`/`in` over manual indexing
+- Use context managers (`with` statements) for resources
+- Follow PEP 8 style guide (enforced by ruff)
+- Use f-strings for string formatting
+- Leverage Python's built-in functions (`min`, `max`, `sum`, etc.)
+
+**Examples**:
+```python
+# GOOD - Pythonic
+return [job_id for job_id, job in jobs.items()
+        if job.container_id not in container_ids]
+
+# BAD - Unpythonic
+result = []
+for job_id in jobs.keys():
+    if jobs[job_id].container_id not in container_ids:
+        result.append(job_id)
+return result
+```
+
+### Code Review Checklist
+
+Before submitting a PR, verify:
+- ✅ No repeated logic (DRY)
+- ✅ Simple, straightforward solution (KISS)
+- ✅ No direct access to private attributes from other modules
+- ✅ Functions have single, clear responsibility
+- ✅ Magic numbers extracted to constants
+- ✅ Type hints present on all public functions
+- ✅ Passes `uv run ruff check` and `uv run pyright`
+- ✅ All tests pass (`uv run pytest`)
+- ✅ New functionality has corresponding tests
+
+### When to Refactor
+
+Refactor immediately if you find:
+- Code duplicated in 3+ places
+- Functions longer than 50 lines
+- Direct access to `._private_attributes` from outside class
+- Complex conditional logic that could be simplified
+- Magic numbers/strings scattered throughout code
+
+**Remember**: Clean code is not about cleverness—it's about clarity, simplicity, and maintainability.
+
 ## Label Format
 
 Containers are scheduled using a `cronjob` label:
