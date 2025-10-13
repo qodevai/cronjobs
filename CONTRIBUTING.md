@@ -606,6 +606,214 @@ ls -la /var/run/docker.sock
 
 ---
 
+## Release Process
+
+This section documents how to create a new release. Only maintainers with write access can perform releases.
+
+### Prerequisites
+
+- Write access to the repository
+- GitHub CLI (`gh`) installed and authenticated
+- Clean working directory on latest `main` branch
+
+### Release Types
+
+Follow [Semantic Versioning](https://semver.org/):
+- **Major (X.0.0)**: Breaking changes (API changes, removed features)
+- **Minor (x.Y.0)**: New features, backward compatible
+- **Patch (x.y.Z)**: Bug fixes, backward compatible
+
+### Release Workflow
+
+#### 1. Prepare the Release
+
+```bash
+# Ensure you're on main with latest changes
+git checkout main
+git pull
+
+# Decide version number (e.g., 2.1.0)
+VERSION="2.1.0"
+```
+
+#### 2. Update Version Files
+
+Edit two files:
+
+**`pyproject.toml`:**
+```toml
+version = "2.1.0"  # Update this line
+```
+
+**`CHANGELOG.md`:**
+```markdown
+## [Unreleased]
+
+## [2.1.0] - 2025-10-13
+
+### Added
+- New feature description
+
+### Changed
+- Change description
+
+### Fixed
+- Bug fix description
+
+### Security
+- Security improvement description
+```
+
+Don't forget to add the version link at the bottom:
+```markdown
+[2.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.1.0
+```
+
+#### 3. Create Release Branch and PR
+
+```bash
+# Create release branch
+git checkout -b chore/release-v${VERSION}
+
+# Commit changes
+git add pyproject.toml CHANGELOG.md
+git commit -m "chore: bump version to ${VERSION}
+
+Release version ${VERSION} with the following changes:
+- Feature/fix summary here
+"
+
+# Push branch
+git push -u origin chore/release-v${VERSION}
+
+# Create PR
+gh pr create --title "chore: release v${VERSION}" --body "## Summary
+- Bump version to ${VERSION} in pyproject.toml
+- Update CHANGELOG.md with release notes
+
+## Changes
+[Describe major changes here]
+"
+```
+
+#### 4. Wait for CI and Merge
+
+```bash
+# Wait for CI to pass, then merge (use PR number from previous command)
+gh pr merge <PR_NUMBER> --squash --delete-branch
+```
+
+#### 5. Create and Push Git Tag
+
+```bash
+# Switch back to main and pull the merge
+git checkout main
+git pull
+
+# Create and push the version tag
+git tag v${VERSION}
+git push origin v${VERSION}
+```
+
+**Important**: Due to branch protection rules, you **cannot** push directly to main. You **must** create a PR, even for version bumps.
+
+#### 6. Verify Docker Publish
+
+The `docker-publish.yml` workflow will automatically trigger when the tag is pushed:
+
+```bash
+# Watch the workflow
+gh run list --workflow=docker-publish.yml --limit 1
+gh run watch <RUN_ID>
+
+# Verify success
+gh run view <RUN_ID>
+```
+
+The workflow will publish these images to Docker Hub:
+- `qodev/cronjobs:2.1.0` (full version)
+- `qodev/cronjobs:2.1` (minor version)
+- `qodev/cronjobs:2` (major version)
+- `qodev/cronjobs:latest` (only for releases from main)
+- `qodev/cronjobs:main` (only for pushes to main)
+
+Both `linux/amd64` and `linux/arm64` platforms are built and published.
+
+#### 7. Create GitHub Release
+
+```bash
+# Extract changelog section for this version
+gh release create v${VERSION} \
+  --title "v${VERSION}" \
+  --notes-file <(sed -n "/## \[${VERSION}\]/,/## \[/p" CHANGELOG.md | head -n -1)
+```
+
+### Quick Release Checklist
+
+Use this checklist when performing a release:
+
+- [ ] Decide version number (MAJOR.MINOR.PATCH)
+- [ ] Update `pyproject.toml` version
+- [ ] Update `CHANGELOG.md` with release notes and date
+- [ ] Add version link to bottom of CHANGELOG.md
+- [ ] Create branch: `chore/release-vX.Y.Z`
+- [ ] Commit with conventional commit message
+- [ ] Push branch and create PR
+- [ ] Wait for CI to pass
+- [ ] Merge PR using squash merge
+- [ ] Pull latest main
+- [ ] Create tag: `git tag vX.Y.Z`
+- [ ] Push tag: `git push origin vX.Y.Z`
+- [ ] Verify Docker publish workflow succeeds
+- [ ] Create GitHub release with changelog
+
+### Troubleshooting Releases
+
+**Tag already exists:**
+```bash
+# Delete local tag
+git tag -d v${VERSION}
+
+# Delete remote tag (be careful!)
+git push --delete origin v${VERSION}
+
+# Recreate and push
+git tag v${VERSION}
+git push origin v${VERSION}
+```
+
+**Need to update an existing tag:**
+```bash
+# Delete old tag locally and remotely
+git tag -d v${VERSION}
+git push --delete origin v${VERSION}
+
+# Create new tag pointing to correct commit
+git tag v${VERSION} <commit-hash>
+
+# Force push the updated tag
+git push --force origin v${VERSION}
+```
+
+**Docker publish failed:**
+- Check GitHub Actions logs: `gh run view <RUN_ID> --log`
+- Verify Docker Hub credentials are configured in repository secrets
+- Re-trigger workflow: Delete and recreate the tag
+
+**Branch protection blocks direct push:**
+- This is expected! Always use PRs, even for version bumps
+- Never bypass branch protection for releases
+
+### Post-Release
+
+After a successful release:
+1. Announce on relevant channels (if applicable)
+2. Close any related milestone on GitHub
+3. Update documentation if API changes were made
+4. Monitor for issues related to the new release
+
+---
+
 ## Resources
 
 - **Documentation**: [README.md](README.md)
