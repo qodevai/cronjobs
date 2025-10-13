@@ -119,9 +119,15 @@ def format_schedule_table(jobs: dict[str, Job]) -> str:
 
     for job in jobs.values():
         # Extract RRULE string representation
-        rrule_str = str(job.rrule).split("\n")[0]  # First line only
-        if rrule_str.startswith("RRULE:"):
-            rrule_str = rrule_str[6:]  # Remove "RRULE:" prefix
+        # str(rrule) returns multi-line string like:
+        # DTSTART:20250101T000000
+        # RRULE:FREQ=WEEKLY;BYDAY=MO
+        rrule_lines = str(job.rrule).split("\n")
+        rrule_str = ""
+        for line in rrule_lines:
+            if line.startswith("RRULE:"):
+                rrule_str = line[6:]  # Remove "RRULE:" prefix
+                break
 
         next_run_str = job.next_run.strftime("%Y-%m-%d %H:%M:%S")
         lines.append(_build_row(job.container_name, rrule_str, job.command, next_run_str))
