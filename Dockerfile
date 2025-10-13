@@ -1,4 +1,4 @@
-FROM python:3.12-slim AS base
+FROM python:3.12-alpine AS base
 
 WORKDIR /app
 
@@ -12,8 +12,21 @@ COPY README.md .
 COPY src/ src/
 
 # Test stage - includes dev dependencies and tests
-FROM base AS test
+# Use slim image for test stage to support pyright (Node.js)
+FROM python:3.12-slim AS test
+
+WORKDIR /app
+
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Copy project files from base
+COPY pyproject.toml .
+COPY uv.lock .
+COPY README.md .
+COPY src/ src/
 COPY tests/ tests/
+
 RUN uv sync --frozen --all-extras
 
 # Production stage - no dev dependencies
