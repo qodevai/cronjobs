@@ -90,10 +90,33 @@ jobs:
     - name: 🐳 Build production Docker image
       run: docker build -t cronjob-scheduler:prod --target production .
 
+    - name: 🧪 Smoke test production image
+      run: |
+        echo "Testing if production image can start..."
+        timeout 5 docker run --rm cronjob-scheduler:prod uv run python src/cronjob_scheduler/main.py 2>&1 | head -10 &
+        pid=$!
+        sleep 2
+        if ps -p $pid > /dev/null; then
+          echo "✅ Image starts successfully"
+          kill $pid 2>/dev/null || true
+        else
+          echo "❌ Image failed to start"
+          exit 1
+        fi
+
     - name: 🚀 Start services with e2e profile
       run: |
         docker compose --profile e2e up -d
         sleep 5
+
+    - name: ✅ Verify scheduler started successfully
+      run: |
+        if ! docker compose ps scheduler | grep -q "running"; then
+          echo "❌ Scheduler container failed to start!"
+          docker compose logs scheduler
+          exit 1
+        fi
+        echo "✅ Scheduler container is running"
 
     - name: 📋 Check scheduler is running
       run: docker compose logs scheduler

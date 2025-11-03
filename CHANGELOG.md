@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Enhanced CI/CD pipeline with improved error detection:
+  - Added smoke test to verify production Docker image can start
+  - Added container status verification in e2e tests to catch startup failures
+
 ### Fixed
+- Fixed ModuleNotFoundError in production Docker image by running script directly instead of as Python module
 - Schedule display now shows RRULE syntax instead of unhelpful DTSTART timestamp
 - Improved type annotations for `Job.rrule` field (changed from `any` to `RRule | RRuleSet`)
 

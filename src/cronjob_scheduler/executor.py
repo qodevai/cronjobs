@@ -11,7 +11,7 @@ from cronjob_scheduler.models import Job
 logger = logging.getLogger(__name__)
 
 CONTAINER_NOT_FOUND_STATUS = 404
-EXEC_TIMEOUT_SECONDS = 30
+EXEC_TIMEOUT_SECONDS = 60 * 60  # 1 hour
 
 
 async def _stream_exec_output(exec_instance: object, job_id: str) -> list[str]:
