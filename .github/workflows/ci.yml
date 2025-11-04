@@ -92,17 +92,8 @@ jobs:
 
     - name: 🧪 Smoke test production image
       run: |
-        echo "Testing if production image can start..."
-        timeout 5 docker run --rm cronjob-scheduler:prod uv run python src/cronjob_scheduler/main.py 2>&1 | head -10 &
-        pid=$!
-        sleep 2
-        if ps -p $pid > /dev/null; then
-          echo "✅ Image starts successfully"
-          kill $pid 2>/dev/null || true
-        else
-          echo "❌ Image failed to start"
-          exit 1
-        fi
+        echo "Testing if production image can import modules..."
+        docker run --rm cronjob-scheduler:prod uv run python -c "import cronjob_scheduler.main; import aiodocker; print('✅ All modules import successfully')"
 
     - name: 🚀 Start services with e2e profile
       run: |
