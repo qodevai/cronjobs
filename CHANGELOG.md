@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed ModuleNotFoundError in production Docker image by running script directly instead of as Python module
+- Fixed pyright type checking in CI by installing libatomic1 dependency for Node.js
 - Schedule display now shows RRULE syntax instead of unhelpful DTSTART timestamp
 - Improved type annotations for `Job.rrule` field (changed from `any` to `RRule | RRuleSet`)
 
