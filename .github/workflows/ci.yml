@@ -102,7 +102,7 @@ jobs:
 
     - name: ✅ Verify scheduler started successfully
       run: |
-        if ! docker compose ps scheduler | grep -q "running"; then
+        if ! docker compose ps scheduler | grep -q "Up"; then
           echo "❌ Scheduler container failed to start!"
           docker compose logs scheduler
           exit 1
