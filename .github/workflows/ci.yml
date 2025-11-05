@@ -100,14 +100,16 @@ jobs:
         docker compose --profile e2e up -d
         sleep 5
 
-    - name: ✅ Verify scheduler started successfully
+    - name: ✅ Verify scheduler is healthy
       run: |
-        if ! docker compose ps scheduler | grep -q "Up"; then
-          echo "❌ Scheduler container failed to start!"
+        # Check if scheduler is healthy (not just running)
+        if ! docker inspect cronjobs-scheduler-1 --format='{{.State.Health.Status}}' | grep -q "healthy"; then
+          echo "❌ Scheduler container is not healthy!"
+          docker compose ps scheduler
           docker compose logs scheduler
           exit 1
         fi
-        echo "✅ Scheduler container is running"
+        echo "✅ Scheduler container is healthy"
 
     - name: 📋 Check scheduler is running
       run: docker compose logs scheduler
@@ -122,7 +124,12 @@ jobs:
         echo "Checking if cronjob created output file..."
         docker compose exec -T example-worker cat /cronjobs.log
         echo "Verifying multiple executions occurred..."
-        docker compose exec -T example-worker sh -c "test -f /cronjobs.log && wc -l /cronjobs.log"
+        line_count=$(docker compose exec -T example-worker sh -c "wc -l < /cronjobs.log")
+        if [ "$line_count" -lt 1 ]; then
+          echo "❌ No jobs executed! Expected at least 1 line, got $line_count"
+          exit 1
+        fi
+        echo "✅ Jobs executed successfully ($line_count lines in log)"
 
     - name: 📋 Show scheduler logs
       if: always()

@@ -35,4 +35,9 @@ RUN uv sync --frozen --all-extras
 # Production stage - no dev dependencies
 FROM base AS production
 RUN uv sync --frozen --no-dev
+
+# Health check to verify scheduler is running
+HEALTHCHECK --interval=10s --timeout=5s --start-period=10s --retries=3 \
+  CMD pgrep -f "cronjob_scheduler" > /dev/null || exit 1
+
 CMD ["uv", "run", "python", "src/cronjob_scheduler/main.py"]
