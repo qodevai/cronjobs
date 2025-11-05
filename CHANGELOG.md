@@ -7,9 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Docker healthcheck to verify scheduler process is running
+  - Checks every 10s with 10s start period
+  - Prevents unhealthy containers from receiving traffic
+  - Enables proper dependency ordering in docker-compose
+- Enhanced CI/CD pipeline with comprehensive error detection:
+  - Added smoke test to verify production Docker image can start
+  - Added healthcheck verification to catch crash-looping containers
+  - Added job execution verification (line count > 0) to ensure scheduler actually works
+  - Fixed e2e test that was passing even when no jobs executed
+
 ### Fixed
+- Fixed ModuleNotFoundError in production Docker image by using `uv run` to access virtualenv
+- Fixed pyright type checking in CI by installing libatomic1 dependency for Node.js
+- Fixed e2e test that wasn't actually verifying jobs executed (only checked if file exists)
 - Schedule display now shows RRULE syntax instead of unhelpful DTSTART timestamp
 - Improved type annotations for `Job.rrule` field (changed from `any` to `RRule | RRuleSet`)
+
+### Changed
+- docker-compose now waits for scheduler to be healthy before starting worker containers
+- e2e tests now verify container health instead of just checking if it's "Up"
 
 ## [2.0.0] - 2025-10-13
 

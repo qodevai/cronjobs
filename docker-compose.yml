@@ -13,7 +13,8 @@ services:
     image: python:3.12-slim
     profiles: ['e2e']
     depends_on:
-      - scheduler
+      scheduler:
+        condition: service_healthy
     labels:
       ai.qodev.cronjobs: |
         freq=secondly;interval=1 => echo "Tick: $(date)" >> /cronjobs.log
