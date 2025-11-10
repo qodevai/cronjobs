@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2025-11-10
+
 ### Added
 - Docker healthcheck to verify scheduler process is running
   - Checks every 10s with 10s start period
@@ -114,6 +116,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker socket read-only access
 - Minimal dependencies (aiodocker, python-dateutil)
 
+[2.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.1.0
 [2.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.0.0
 [1.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v1.0.0
 [0.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v0.1.0
