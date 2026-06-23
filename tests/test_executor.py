@@ -146,3 +146,64 @@ async def test_execute_job_with_complex_command(mocker):
 
     assert exit_code == 0
     mock_container.exec.assert_called_once()
+
+
+def _make_recording_exec(exit_code: int = 0):
+    """Build mocked docker/container/exec objects for a single execution."""
+    mock_docker = MagicMock()
+    mock_container = AsyncMock()
+    mock_docker.containers.get = AsyncMock(return_value=mock_container)
+
+    mock_msg = MagicMock()
+    mock_msg.data = b"output\n"
+    mock_stream = AsyncMock()
+    mock_stream.read_out = AsyncMock(side_effect=[mock_msg, None])
+
+    mock_exec = AsyncMock()
+    mock_exec.start = MagicMock(return_value=mock_stream)
+    mock_exec.inspect = AsyncMock(return_value={"ExitCode": exit_code})
+    mock_container.exec = AsyncMock(return_value=mock_exec)
+    return mock_docker, mock_container
+
+
+@pytest.mark.asyncio
+async def test_execute_job_injects_trace_context_into_exec_env(monkeypatch):
+    """With an active recording span, the W3C trace context is passed to the exec env."""
+    from opentelemetry.sdk.trace import TracerProvider
+
+    import cronjob_scheduler.executor as executor_mod
+
+    # Give the executor a real (recording) tracer so context injection produces a
+    # traceparent. The executor imports `tracer` by value, so patch its own binding.
+    provider = TracerProvider()
+    monkeypatch.setattr(executor_mod, "tracer", provider.get_tracer("test"))
+
+    mock_docker, mock_container = _make_recording_exec(exit_code=0)
+    job = create_test_job(command="python sync.py")
+
+    exit_code = await execute_job(mock_docker, job)
+
+    assert exit_code == 0
+    environment = mock_container.exec.call_args.kwargs["environment"]
+    assert environment is not None
+    assert "TRACEPARENT" in environment
+    # W3C traceparent format: version-traceid-spanid-flags
+    assert environment["TRACEPARENT"].count("-") == 3
+
+
+@pytest.mark.asyncio
+async def test_execute_job_no_trace_context_when_disabled(monkeypatch):
+    """With telemetry disabled (no-op tracer), no trace env vars are injected."""
+    from opentelemetry import trace
+
+    import cronjob_scheduler.executor as executor_mod
+
+    monkeypatch.setattr(executor_mod, "tracer", trace.get_tracer("noop"))
+
+    mock_docker, mock_container = _make_recording_exec(exit_code=0)
+    job = create_test_job(command="python sync.py")
+
+    await execute_job(mock_docker, job)
+
+    # No recording span -> empty carrier -> environment passed as None
+    assert mock_container.exec.call_args.kwargs["environment"] is None

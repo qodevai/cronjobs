@@ -11,7 +11,8 @@ This is a Docker-native cronjob scheduler that uses RRULE (RFC 5545 recurrence r
 - Stateless - no persistent storage, rebuilds state from container labels
 - Uses `aiodocker` for Docker API interactions
 - Jobs are anchored to `2025-01-01T00:00:00Z` for consistent schedule alignment
-- Alpine-compatible with minimal dependencies (only 2 runtime deps)
+- Alpine-compatible with minimal dependencies (`aiodocker`, `python-dateutil`, plus OpenTelemetry SDK/exporter for optional telemetry)
+- Optional OpenTelemetry metrics & traces, configured via standard `OTEL_*` env vars (see `telemetry.py`); no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set
 - Production image uses Alpine Linux for enhanced security (88% fewer CVEs)
 
 ## Development Commands
