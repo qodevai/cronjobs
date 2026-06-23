@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-06-23
+
+### Added
+- Optional, vendor-neutral **OpenTelemetry** support, configured entirely via standard `OTEL_*`
+  environment variables and disabled by default (no-op unless `OTEL_EXPORTER_OTLP_ENDPOINT` is set):
+  - Metrics: `cronjob.executions` (counter) and `cronjob.duration` (histogram, seconds), tagged
+    with `cronjob.job_id`, `cronjob.container_name`, and `cronjob.status`
+    (`success`/`failure`/`timeout`/`error`).
+  - Traces: one `cronjob.execute` span per run, marked as an error on non-zero exit, timeout, or
+    failure to start.
+  - **Trace-context propagation**: the active span's W3C context is injected into each executed
+    command's environment (`TRACEPARENT`/`TRACESTATE`), so an instrumented job can continue the
+    same trace and appear as a child of `cronjob.execute`.
+  - Documented under "OpenTelemetry (metrics & traces)" in the README.
+- New runtime dependencies: `opentelemetry-sdk`, `opentelemetry-exporter-otlp-proto-http`
+  (imported lazily; inert when telemetry is not configured).
+
 ## [2.1.0] - 2025-11-10
 
 ### Added

@@ -11,6 +11,7 @@ import aiodocker
 from cronjob_scheduler.docker_watcher import watch_containers
 from cronjob_scheduler.executor import execute_job
 from cronjob_scheduler.scheduler import Scheduler
+from cronjob_scheduler.telemetry import init_telemetry, shutdown_telemetry
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,7 @@ async def run_scheduler_loop(scheduler: Scheduler, docker_client: aiodocker.Dock
 async def main_async() -> None:
     """Main async entry point."""
     # Initialize components
+    init_telemetry()
     docker_client = aiodocker.Docker()
     scheduler = Scheduler()
 
@@ -65,6 +67,7 @@ async def main_async() -> None:
     finally:
         # Cleanup
         await docker_client.close()
+        shutdown_telemetry()
         logger.info("Cleanup complete")
 
 

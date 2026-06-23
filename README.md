@@ -14,7 +14,7 @@ A Docker-native cronjob scheduler that monitors containers and executes schedule
 - **Event-driven**: Automatically detects container changes
 - **Concurrent execution**: Runs multiple jobs in parallel
 - **No persistent storage**: Fully in-memory, stateless design
-- **Lightweight**: Only 2 runtime dependencies (aiodocker, python-dateutil)
+- **OpenTelemetry-ready**: Optional, vendor-neutral metrics and traces, including trace-context propagation into executed jobs ([details](#opentelemetry-metrics--traces))
 
 ## Quick Start
 
@@ -175,6 +175,89 @@ services:
 - `INFO`: General informational messages (jobs found, jobs executed, container events)
 - `WARNING`: Warning messages (invalid labels, failed jobs)
 - `ERROR`: Error messages only
+
+### OpenTelemetry (metrics & traces)
+
+The scheduler can export [OpenTelemetry](https://opentelemetry.io/) metrics and traces over
+OTLP/HTTP. It is **opt-in and vendor-neutral** — configured entirely through the standard
+`OTEL_*` environment variables, with no specific backend assumed. When no OTLP endpoint is
+configured, telemetry stays a no-op and adds no overhead.
+
+#### Enabling it
+
+Set an OTLP endpoint (and, for most backends, auth headers and resource attributes):
+
+```yaml
+services:
+  scheduler:
+    image: qodev/cronjobs:latest
+    environment:
+      # Required to enable telemetry — base OTLP/HTTP endpoint (paths are appended automatically)
+      - OTEL_EXPORTER_OTLP_ENDPOINT=https://otel-collector.example.com
+      # Optional: headers for authenticated collectors (e.g. HTTP Basic / API key)
+      - OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic <base64>
+      # Optional: identify this service in your backend
+      - OTEL_RESOURCE_ATTRIBUTES=service.namespace=myproject,service.name=scheduler
+```
+
+Recognised environment variables (all standard OpenTelemetry SDK variables):
+
+| Variable | Purpose |
+| --- | --- |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | Base OTLP/HTTP endpoint. **Telemetry is disabled unless this (or a signal-specific endpoint) is set.** The exporter appends `/v1/metrics` and `/v1/traces`. |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Comma-separated headers, e.g. `Authorization=Basic abc123`. |
+| `OTEL_EXPORTER_OTLP_PROTOCOL` | Defaults to `http/protobuf` (the only protocol bundled). |
+| `OTEL_RESOURCE_ATTRIBUTES` | Resource attributes, e.g. `service.namespace=...,service.name=...`. |
+| `OTEL_SERVICE_NAME` | Shorthand for `service.name` (defaults to `cronjob-scheduler`). |
+| `OTEL_SDK_DISABLED` | Set to `true` to force telemetry off even when an endpoint is configured. |
+
+#### What gets emitted
+
+**Metrics**
+
+| Metric | Type | Description |
+| --- | --- | --- |
+| `cronjob.executions` | Counter | One increment per job run. |
+| `cronjob.duration` | Histogram (seconds) | Wall-clock duration of each run. |
+
+Both carry the attributes `cronjob.job_id`, `cronjob.container_name`, and `cronjob.status`
+(`success` \| `failure` \| `timeout` \| `error`). For example, you can alert on
+`cronjob.executions` where `cronjob.status != "success"`.
+
+**Traces**
+
+Each run produces one `cronjob.execute` span (service = the scheduler) carrying `cronjob.job_id`,
+`cronjob.container_name`, `cronjob.command`, `cronjob.exit_code`, and `cronjob.status`. The span
+is marked as an error when the job exits non-zero, times out, or fails to start.
+
+#### Linking the executed job to the trace
+
+Before running a command, the scheduler injects the active span's
+[W3C trace context](https://www.w3.org/TR/trace-context/) into the command's environment as
+`TRACEPARENT` (and `TRACESTATE` when present). An OpenTelemetry-instrumented job can extract it
+and **continue the same trace**, so the job's own spans appear as children of `cronjob.execute` —
+giving you one end-to-end trace per run, even across services.
+
+The scheduler only *exposes* the standard variables; how (and whether) a job uses them is up to
+that job. In Python, for example:
+
+```python
+import os
+from opentelemetry.propagate import extract
+from opentelemetry import trace
+
+tracer = trace.get_tracer(__name__)
+parent = extract({
+    "traceparent": os.environ.get("TRACEPARENT", ""),
+    "tracestate": os.environ.get("TRACESTATE", ""),
+})
+with tracer.start_as_current_span("my-job", context=parent):
+    ...  # this span (and its children) join the scheduler's trace
+```
+
+> **Note:** language SDKs do not auto-read `TRACEPARENT` from the environment, so each job that
+> wants to be linked needs a few lines like the above. Jobs that don't opt in still get the
+> standalone `cronjob.execute` span (duration + status); linking simply lights up per job.
 
 ### Requirements
 
