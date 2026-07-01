@@ -219,10 +219,18 @@ Recognised environment variables (all standard OpenTelemetry SDK variables):
 | --- | --- | --- |
 | `cronjob.executions` | Counter | One increment per job run. |
 | `cronjob.duration` | Histogram (seconds) | Wall-clock duration of each run. |
+| `cronjob.last_run_failed` | Gauge | `1` if a job's most recent run did not succeed, else `0`. |
 
-Both carry the attributes `cronjob.job_id`, `cronjob.container_name`, and `cronjob.status`
-(`success` \| `failure` \| `timeout` \| `error`). For example, you can alert on
-`cronjob.executions` where `cronjob.status != "success"`.
+`cronjob.executions` and `cronjob.duration` carry the attributes `cronjob.job_id`,
+`cronjob.container_name`, and `cronjob.status` (`success` \| `failure` \| `timeout` \|
+`error`); `cronjob.last_run_failed` carries `cronjob.job_id` and `cronjob.container_name`.
+
+For alerting, prefer `cronjob.last_run_failed`: it holds each job's most recent outcome
+until that job runs again, so an alert on `latest(cronjob.last_run_failed) == 1` (grouped
+by `cronjob.job_id`) **stays firing until the same job succeeds**, rather than resolving
+once the failure ages out of a window. Alerting on `cronjob.executions` where
+`cronjob.status != "success"` instead is windowed, so a brief periodic failure flaps
+(fires, then auto-resolves when the window clears) rather than latching.
 
 **Traces**
 
