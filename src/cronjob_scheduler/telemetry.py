@@ -11,6 +11,9 @@ What it emits when enabled:
     - ``cronjob.executions`` (counter): one increment per job run, tagged with
       ``cronjob.status`` (``success`` | ``failure`` | ``timeout`` | ``error``).
     - ``cronjob.duration`` (histogram, seconds): wall-clock time of each run.
+    - ``cronjob.last_run_failed`` (observable gauge): ``1`` when a job's most recent run
+      did not succeed, else ``0``. Held between runs, so it reflects *current* state and
+      only clears when the same job runs again and succeeds — unlike the windowed counter.
 - Traces
     - One ``cronjob.execute`` span per run. The span's W3C trace context is injected
       into the executed command's environment (``TRACEPARENT`` / ``TRACESTATE``) so an
@@ -23,8 +26,10 @@ Enable it by setting ``OTEL_EXPORTER_OTLP_ENDPOINT`` (and usually
 
 import logging
 import os
+import threading
 
 from opentelemetry import metrics, trace
+from opentelemetry.metrics import CallbackOptions, Observation
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +47,51 @@ cronjob_duration = _meter.create_histogram(
     "cronjob.duration",
     unit="s",
     description="Wall-clock duration of a cronjob execution in seconds.",
+)
+
+# Per-job "most recent run" state backing the cronjob.last_run_failed observable gauge.
+# Keyed by (job_id, container_name); the value is (failed, attributes) where ``failed`` is
+# 1 when the last run did not succeed, else 0. A lock guards it because the executor
+# (asyncio thread) writes while the metric reader's background thread reads it in the
+# gauge callback.
+_last_run_lock = threading.Lock()
+_last_run_state: dict[tuple[str, str], tuple[int, dict[str, str]]] = {}
+
+
+def record_last_run(job_id: str, container_name: str, status: str) -> None:
+    """
+    Record the terminal status of a job's most recent run for ``cronjob.last_run_failed``.
+
+    ``failed`` is 0 when ``status`` is ``success`` and 1 for every non-success terminal
+    status (``failure`` / ``timeout`` / ``error``). The value is retained until the *same*
+    job runs again, so an alert on the gauge stays firing after a failure and clears only
+    once a later run of that job succeeds — a windowed counter, by contrast, forgets a
+    failure as soon as it ages out of the evaluation window.
+    """
+    failed = 0 if status == "success" else 1
+    attributes = {
+        "cronjob.job_id": job_id,
+        "cronjob.container_name": container_name,
+    }
+    with _last_run_lock:
+        _last_run_state[(job_id, container_name)] = (failed, attributes)
+
+
+def _observe_last_run(options: CallbackOptions) -> list[Observation]:
+    """Emit the last-known status for every job seen so far (held between runs)."""
+    with _last_run_lock:
+        snapshot = list(_last_run_state.values())
+    return [Observation(failed, attributes) for failed, attributes in snapshot]
+
+
+cronjob_last_run_failed = _meter.create_observable_gauge(
+    "cronjob.last_run_failed",
+    callbacks=[_observe_last_run],
+    unit="1",
+    description=(
+        "1 if a job's most recent run did not succeed, else 0; held until the job runs "
+        "again so it reflects current state rather than a windowed count."
+    ),
 )
 
 # Providers are kept module-global so shutdown_telemetry() can flush them on exit.

@@ -11,7 +11,12 @@ from opentelemetry.trace import SpanKind
 from opentelemetry.trace.status import Status, StatusCode
 
 from cronjob_scheduler.models import Job
-from cronjob_scheduler.telemetry import cronjob_duration, cronjob_executions, tracer
+from cronjob_scheduler.telemetry import (
+    cronjob_duration,
+    cronjob_executions,
+    record_last_run,
+    tracer,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -212,3 +217,4 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
             }
             cronjob_executions.add(1, metric_attributes)
             cronjob_duration.record(time.monotonic() - start, metric_attributes)
+            record_last_run(job.id, job.container_name, status)

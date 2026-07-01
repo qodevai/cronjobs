@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-07-01
+
+### Added
+- New metric `cronjob.last_run_failed` (observable gauge): `1` when a job's most recent run
+  did not succeed, else `0`, carrying `cronjob.job_id` and `cronjob.container_name`. The value
+  is held between runs, so it reflects each job's *current* state and only clears when the same
+  job runs again and succeeds. This lets an alert on `latest(cronjob.last_run_failed) == 1` stay
+  firing until the job recovers, instead of flapping like a windowed count of non-success
+  `cronjob.executions` (which auto-resolves once a brief periodic failure ages out of the window).
+
 ## [2.2.0] - 2026-06-23
 
 ### Added
@@ -133,6 +143,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker socket read-only access
 - Minimal dependencies (aiodocker, python-dateutil)
 
+[2.3.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.3.0
 [2.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.1.0
 [2.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.0.0
 [1.0.0]: https://github.com/qodevai/cronjobs/releases/tag/v1.0.0
