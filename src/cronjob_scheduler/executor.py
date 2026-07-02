@@ -23,6 +23,20 @@ logger = logging.getLogger(__name__)
 CONTAINER_NOT_FOUND_STATUS = 404
 EXEC_TIMEOUT_SECONDS = 60 * 60  # 1 hour
 
+# How much of a job's captured output to log. A successful run just needs a short
+# confirmation snippet; a failed run needs the *tail*, because errors and tracebacks
+# surface at the end of the output — logging the head (the first 200 chars) usually
+# shows only startup noise and hides the actual failure.
+SUCCESS_OUTPUT_CHARS = 200
+FAILURE_OUTPUT_CHARS = 4000
+
+
+def _tail(text: str, limit: int) -> str:
+    """Return the last ``limit`` characters of ``text``, marked when content was dropped."""
+    if len(text) <= limit:
+        return text
+    return f"…[truncated to last {limit} chars]\n{text[-limit:]}"
+
 
 async def _stream_exec_output(exec_instance: object, job_id: str) -> list[str]:
     """
@@ -142,7 +156,7 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
                         "Job %s completed successfully (exit code: %d). Output: %s",
                         job.id,
                         exit_code,
-                        output[:200],  # Limit output to 200 chars
+                        output[:SUCCESS_OUTPUT_CHARS],
                     )
                 else:
                     logger.info(
@@ -157,7 +171,7 @@ async def execute_job(docker_client: aiodocker.Docker, job: Job) -> int:
                     "Job %s failed with exit code %d. Output: %s",
                     job.id,
                     exit_code,
-                    output[:200],  # Limit output to 200 chars
+                    _tail(output, FAILURE_OUTPUT_CHARS),
                 )
 
             return exit_code
