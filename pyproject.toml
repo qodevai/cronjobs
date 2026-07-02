@@ -1,6 +1,6 @@
 [project]
 name = "cronjob-scheduler"
-version = "2.3.0"
+version = "2.3.1"
 description = "A Docker-native cronjob scheduler using RRULE labels for flexible, event-driven task scheduling"
 readme = "README.md"
 authors = [

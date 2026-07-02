@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from dateutil.rrule import HOURLY, rrule
 
-from cronjob_scheduler.executor import execute_job
+from cronjob_scheduler.executor import FAILURE_OUTPUT_CHARS, _tail, execute_job
 from cronjob_scheduler.models import ANCHOR, Job
 
 
@@ -207,3 +207,40 @@ async def test_execute_job_no_trace_context_when_disabled(monkeypatch):
 
     # No recording span -> empty carrier -> environment passed as None
     assert mock_container.exec.call_args.kwargs["environment"] is None
+
+
+def test_tail_keeps_end_and_marks_truncation():
+    """_tail returns the end of the text (where errors are) and flags truncation."""
+    assert _tail("short output", 100) == "short output"
+
+    long = "HEAD_NOISE" + "x" * (FAILURE_OUTPUT_CHARS + 500) + "TRACEBACK_END"
+    out = _tail(long, FAILURE_OUTPUT_CHARS)
+    assert "TRACEBACK_END" in out  # the tail (error) is kept
+    assert "HEAD_NOISE" not in out  # the head (startup noise) is dropped
+    assert out.startswith("…[truncated")
+
+
+@pytest.mark.asyncio
+async def test_execute_job_failure_logs_output_tail(caplog):
+    """A failed job logs the tail of its output — the error — not just the head."""
+    mock_docker = MagicMock()
+    mock_container = AsyncMock()
+    mock_docker.containers.get = AsyncMock(return_value=mock_container)
+
+    # >200 chars of startup noise (what the old head-truncation showed), then the error.
+    head = "INFO connecting to postgres...\n" * 40
+    mock_msg = MagicMock()
+    mock_msg.data = (head + "Traceback (most recent call last):\nRuntimeError: boom\n").encode()
+    mock_stream = AsyncMock()
+    mock_stream.read_out = AsyncMock(side_effect=[mock_msg, None])
+
+    mock_exec = AsyncMock()
+    mock_exec.start = MagicMock(return_value=mock_stream)
+    mock_exec.inspect = AsyncMock(return_value={"ExitCode": 1})
+    mock_container.exec = AsyncMock(return_value=mock_exec)
+
+    with caplog.at_level("WARNING"):
+        exit_code = await execute_job(mock_docker, create_test_job())
+
+    assert exit_code == 1
+    assert "RuntimeError: boom" in caplog.text  # the real error is now visible in the log
