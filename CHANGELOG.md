@@ -5,7 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [2.3.2] - 2026-07-10
+
+### Fixed
+- `cronjob.last_run_failed` no longer stays firing forever after a container redeploy. The
+  gauge is keyed partly by job id (`<container-id>-job-N`), so a redeployed container's jobs
+  get new ids and the old entries were never overwritten — a lingering `failed=1` from before
+  the redeploy kept being re-exported on every scrape, holding the alert open until a scheduler
+  restart. The gauge callback now reconciles against the live scheduled-job set and prunes state
+  for jobs that are no longer scheduled, so a redeployed-away hash disappears on the next scrape.
 
 ## [2.3.1] - 2026-07-02
 

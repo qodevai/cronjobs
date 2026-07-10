@@ -61,6 +61,40 @@ def test_last_run_gauge_holds_status_until_next_run(monkeypatch):
     assert _observe()["job-a"] == 0
 
 
+def test_last_run_gauge_prunes_jobs_no_longer_scheduled(monkeypatch):
+    """State for a redeployed-away job (old container hash) is dropped at export time."""
+    monkeypatch.setattr(telemetry, "_last_run_state", {})
+
+    # Same logical job (job-18) under an old container hash whose last run failed, and the
+    # live one after a redeploy under a new hash that is running healthy.
+    record_last_run("old-job-18", "old-container", "failure")
+    record_last_run("new-job-18", "new-container", "success")
+
+    # Only the redeployed container's job is still scheduled.
+    monkeypatch.setattr(telemetry, "_live_job_ids_provider", lambda: {"new-job-18"})
+
+    # The orphaned old-hash series must no longer be emitted; the live one stays at 0.
+    assert _observe() == {"new-job-18": 0}
+    # Pruning is authoritative: the stale key is gone from the backing state entirely.
+    assert ("old-job-18", "old-container") not in telemetry._last_run_state
+
+
+def test_last_run_gauge_emits_full_state_when_provider_raises(monkeypatch):
+    """A raising live-job-ids provider must not take down the gauge; skip pruning instead."""
+    monkeypatch.setattr(telemetry, "_last_run_state", {})
+    record_last_run("old-job-18", "old-container", "failure")
+    record_last_run("new-job-18", "new-container", "success")
+
+    def _boom() -> set[str]:
+        raise RuntimeError("dictionary changed size during iteration")
+
+    monkeypatch.setattr(telemetry, "_live_job_ids_provider", _boom)
+
+    # No pruning happened, so the full state (including the stale entry) is still emitted,
+    # and nothing propagated out of the callback.
+    assert _observe() == {"old-job-18": 1, "new-job-18": 0}
+
+
 def test_last_run_gauge_treats_every_non_success_as_failed(monkeypatch):
     """failure, timeout and error all map to 1; only success maps to 0."""
     monkeypatch.setattr(telemetry, "_last_run_state", {})

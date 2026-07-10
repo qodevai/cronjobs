@@ -11,7 +11,11 @@ import aiodocker
 from cronjob_scheduler.docker_watcher import watch_containers
 from cronjob_scheduler.executor import execute_job
 from cronjob_scheduler.scheduler import Scheduler
-from cronjob_scheduler.telemetry import init_telemetry, shutdown_telemetry
+from cronjob_scheduler.telemetry import (
+    init_telemetry,
+    set_live_job_ids_provider,
+    shutdown_telemetry,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +57,9 @@ async def main_async() -> None:
     init_telemetry()
     docker_client = aiodocker.Docker()
     scheduler = Scheduler()
+    # Let the last_run_failed gauge prune state for jobs that are no longer scheduled
+    # (e.g. after a container redeploy) instead of re-exporting them forever.
+    set_live_job_ids_provider(scheduler.get_job_ids)
 
     logger.info("Cronjob scheduler starting...")
 
