@@ -27,6 +27,7 @@ Enable it by setting ``OTEL_EXPORTER_OTLP_ENDPOINT`` (and usually
 import logging
 import os
 import threading
+from collections.abc import Callable
 
 from opentelemetry import metrics, trace
 from opentelemetry.metrics import CallbackOptions, Observation
@@ -57,6 +58,27 @@ cronjob_duration = _meter.create_histogram(
 _last_run_lock = threading.Lock()
 _last_run_state: dict[tuple[str, str], tuple[int, dict[str, str]]] = {}
 
+# Callable returning the set of currently-scheduled job ids, registered by main() with
+# Scheduler.get_job_ids. The gauge callback uses it to prune state for jobs that are no
+# longer scheduled; while it stays None (e.g. before wiring, or in unit tests) no pruning
+# happens and the full state is emitted unchanged.
+_live_job_ids_provider: Callable[[], set[str]] | None = None
+
+
+def set_live_job_ids_provider(provider: Callable[[], set[str]]) -> None:
+    """
+    Register the source of truth for which job ids are currently scheduled.
+
+    ``cronjob.last_run_failed`` state is keyed partly by ``job_id`` (``<container-id>-job-N``).
+    When a container is redeployed it gets a new id, so its jobs get new ids and the old
+    entries are never written again; a lingering ``failed=1`` from before the redeploy would
+    otherwise be re-exported on every scrape and hold an alert firing forever. This provider
+    lets the gauge callback drop such orphaned entries. ``Scheduler.get_job_ids`` is the
+    intended argument.
+    """
+    global _live_job_ids_provider
+    _live_job_ids_provider = provider
+
 
 def record_last_run(job_id: str, container_name: str, status: str) -> None:
     """
@@ -78,8 +100,22 @@ def record_last_run(job_id: str, container_name: str, status: str) -> None:
 
 
 def _observe_last_run(options: CallbackOptions) -> list[Observation]:
-    """Emit the last-known status for every job seen so far (held between runs)."""
+    """
+    Emit the last-known status for every currently-scheduled job (held between runs).
+
+    Reconcile against the live job set first: any state left behind by a job that is no
+    longer scheduled (typically a redeployed container whose jobs now have new ids) is
+    pruned so it stops being re-exported. This keeps the exported series tracking exactly
+    what is scheduled now, without needing a scheduler restart to clear stale entries.
+    """
+    provider = _live_job_ids_provider
+    live = provider() if provider is not None else None
     with _last_run_lock:
+        if live is not None:
+            for key in list(_last_run_state):
+                job_id, _container_name = key
+                if job_id not in live:
+                    del _last_run_state[key]
         snapshot = list(_last_run_state.values())
     return [Observation(failed, attributes) for failed, attributes in snapshot]
 
