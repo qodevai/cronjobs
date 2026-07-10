@@ -109,7 +109,18 @@ def _observe_last_run(options: CallbackOptions) -> list[Observation]:
     what is scheduled now, without needing a scheduler restart to clear stale entries.
     """
     provider = _live_job_ids_provider
-    live = provider() if provider is not None else None
+    live: set[str] | None = None
+    if provider is not None:
+        try:
+            live = provider()
+        except Exception:
+            # The provider (Scheduler.get_job_ids) runs on the async loop's data while we
+            # are on OTel's export thread, so it can race (e.g. "dict changed size during
+            # iteration"). Never let that take down the gauge: skip pruning this cycle and
+            # emit the full state; the next scrape prunes once the race clears.
+            logger.warning(
+                "last_run gauge: live-job-ids provider failed; skipping prune", exc_info=True
+            )
     with _last_run_lock:
         if live is not None:
             for key in list(_last_run_state):

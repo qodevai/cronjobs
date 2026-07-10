@@ -79,6 +79,22 @@ def test_last_run_gauge_prunes_jobs_no_longer_scheduled(monkeypatch):
     assert ("old-job-18", "old-container") not in telemetry._last_run_state
 
 
+def test_last_run_gauge_emits_full_state_when_provider_raises(monkeypatch):
+    """A raising live-job-ids provider must not take down the gauge; skip pruning instead."""
+    monkeypatch.setattr(telemetry, "_last_run_state", {})
+    record_last_run("old-job-18", "old-container", "failure")
+    record_last_run("new-job-18", "new-container", "success")
+
+    def _boom() -> set[str]:
+        raise RuntimeError("dictionary changed size during iteration")
+
+    monkeypatch.setattr(telemetry, "_live_job_ids_provider", _boom)
+
+    # No pruning happened, so the full state (including the stale entry) is still emitted,
+    # and nothing propagated out of the callback.
+    assert _observe() == {"old-job-18": 1, "new-job-18": 0}
+
+
 def test_last_run_gauge_treats_every_non_success_as_failed(monkeypatch):
     """failure, timeout and error all map to 1; only success maps to 0."""
     monkeypatch.setattr(telemetry, "_last_run_state", {})
