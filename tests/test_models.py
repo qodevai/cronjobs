@@ -215,6 +215,29 @@ FREQ=HOURLY => python  -m  x"""
         jobs = parse_cronjob_label(self.LABEL, "c1", "dash-1")
         assert all("@" not in j.id for j in jobs)
 
+    def test_recasing_a_schedule_does_not_re_identify_a_job(self):
+        """The disambiguating digest uses the NORMALIZED schedule, so editing
+        `freq=hourly` to `FREQ=HOURLY` is a no-op for identity — it is the same job."""
+        lower = """freq=daily;byhour=6 => python report.py
+freq=daily;byhour=18 => python report.py"""
+        upper = """FREQ=DAILY;BYHOUR=6 => python report.py
+FREQ=DAILY;BYHOUR=18 => python report.py"""
+
+        a = [j.id for j in parse_cronjob_label(lower, "c1", "dash-1")]
+        b = [j.id for j in parse_cronjob_label(upper, "c1", "dash-1")]
+        assert a == b
+
+    def test_duplicate_warning_echoes_what_the_operator_wrote(self, caplog):
+        """The warning says "remove the duplicate line", so it has to quote the label
+        as written — a normalized echo would not match a grep of their compose file."""
+        label = """freq=hourly => python x.py
+freq=hourly => python x.py"""
+
+        with caplog.at_level(logging.WARNING):
+            parse_cronjob_label(label, "c1", "dash-1")
+
+        assert "freq=hourly" in caplog.text
+
     def test_punctuation_only_command_still_gets_an_id(self):
         (job,) = parse_cronjob_label("FREQ=HOURLY => @@@", "c1", "dash-1")
         assert job.id.startswith("dash-1:")

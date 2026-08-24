@@ -43,7 +43,7 @@ def _command_slug(command: str) -> str:
     return slug
 
 
-def _build_job_ids(container_name: str, specs: list[tuple[str, str]]) -> list[str]:
+def _build_job_ids(container_name: str, specs: list[tuple[str, str, str]]) -> list[str]:
     """
     Assign a stable id to each (rrule, command) pair in a container's label.
 
@@ -69,22 +69,27 @@ def _build_job_ids(container_name: str, specs: list[tuple[str, str]]) -> list[st
 
     Lines identical in both command and schedule are true duplicates; they get
     an occurrence suffix so neither is dropped, and are logged.
+
+    `specs` carries (normalized rrule, raw rrule, command). The digest uses the
+    NORMALIZED schedule, so merely re-casing `freq=hourly` to `FREQ=HOURLY`
+    does not re-identify a job; messages echo the RAW text so a warning can be
+    grepped against the label the operator actually wrote.
     """
-    bases = [f"{container_name}:{_command_slug(command)}" for _rrule, command in specs]
+    bases = [f"{container_name}:{_command_slug(command)}" for _norm, _raw, command in specs]
 
     # A base is ambiguous when more than one DISTINCT (command, schedule) pair
     # resolves to it. Counting distinct pairs, not lines, keeps a genuinely
     # duplicated line from making its base look ambiguous.
     distinct_by_base: dict[str, set[tuple[str, str]]] = {}
-    for base, (rrule_str, command) in zip(bases, specs, strict=True):
-        distinct_by_base.setdefault(base, set()).add((command, rrule_str))
+    for base, (norm_rrule, _raw, command) in zip(bases, specs, strict=True):
+        distinct_by_base.setdefault(base, set()).add((command, norm_rrule))
 
     ids: list[str] = []
     used: dict[str, int] = {}
-    for base, (rrule_str, command) in zip(bases, specs, strict=True):
+    for base, (norm_rrule, raw_rrule, command) in zip(bases, specs, strict=True):
         job_id = base
         if len(distinct_by_base[base]) > 1:
-            digest = hashlib.sha256(f"{command}\x00{rrule_str}".encode()).hexdigest()[:8]
+            digest = hashlib.sha256(f"{command}\x00{norm_rrule}".encode()).hexdigest()[:8]
             job_id = f"{base}@{digest}"
 
         seen = used.get(job_id, 0)
@@ -94,7 +99,7 @@ def _build_job_ids(container_name: str, specs: list[tuple[str, str]]) -> list[st
                 "Duplicate cronjob entry in %s (same command and schedule): %s => %s "
                 "— disambiguating as #%d; remove the duplicate line if unintended",
                 container_name,
-                rrule_str,
+                raw_rrule,
                 command,
                 seen + 1,
             )
@@ -138,7 +143,8 @@ def parse_cronjob_label(label: str, container_id: str, container_name: str) -> l
         return []
 
     jobs = []
-    parsed: list[tuple[str, str, RRule | RRuleSet]] = []
+    # (normalized rrule, raw rrule, command, parsed rule)
+    parsed: list[tuple[str, str, str, RRule | RRuleSet]] = []
     lines = label.strip().split("\n")
     logger.debug("Parsing %d line(s) from cronjob label in %s", len(lines), container_id[:12])
 
@@ -174,16 +180,16 @@ def parse_cronjob_label(label: str, container_id: str, container_name: str) -> l
             logger.error("Failed to parse RRULE '%s': %s", rrule_str, e)
             raise ValueError(f"Invalid RRULE '{rrule_str}': {e}") from e
 
-        parsed.append((rrule_str_normalized, command, rule))
+        parsed.append((rrule_str_normalized, rrule_str, command, rule))
 
     # Ids are assigned in a second pass because disambiguating duplicate
     # commands requires knowing the whole label — and doing it per-line would
     # reintroduce exactly the positional dependence this replaces.
     job_ids = _build_job_ids(
-        container_name, [(rrule_str, command) for rrule_str, command, _rule in parsed]
+        container_name, [(norm, raw, command) for norm, raw, command, _rule in parsed]
     )
 
-    for job_id, (rrule_str, command, rule) in zip(job_ids, parsed, strict=True):
+    for job_id, (_norm, rrule_str, command, rule) in zip(job_ids, parsed, strict=True):
         job = Job(
             id=job_id,
             container_id=container_id,
