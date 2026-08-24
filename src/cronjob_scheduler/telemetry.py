@@ -69,12 +69,17 @@ def set_live_job_ids_provider(provider: Callable[[], set[str]]) -> None:
     """
     Register the source of truth for which job ids are currently scheduled.
 
-    ``cronjob.last_run_failed`` state is keyed partly by ``job_id`` (``<container-id>-job-N``).
-    When a container is redeployed it gets a new id, so its jobs get new ids and the old
-    entries are never written again; a lingering ``failed=1`` from before the redeploy would
-    otherwise be re-exported on every scrape and hold an alert firing forever. This provider
-    lets the gauge callback drop such orphaned entries. ``Scheduler.get_job_ids`` is the
-    intended argument.
+    ``cronjob.last_run_failed`` state is keyed partly by ``job_id``
+    (``<container-name>:<command>``). A job id that is no longer scheduled — its line was
+    removed from the label, or the container itself is gone — is never written again, so a
+    lingering ``failed=1`` would otherwise be re-exported on every scrape and hold an alert
+    firing forever. This provider lets the gauge callback drop such orphaned entries.
+    ``Scheduler.get_job_ids`` is the intended argument.
+
+    Redeploys no longer produce orphans: ids are derived from the container NAME and the
+    command, so a replaced container keeps its jobs' identities. Before that, ids embedded
+    the container id and every redeploy stranded a full set of entries here — which is why
+    this prune was added.
     """
     global _live_job_ids_provider
     _live_job_ids_provider = provider
