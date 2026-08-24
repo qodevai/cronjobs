@@ -232,6 +232,13 @@ once the failure ages out of a window. Alerting on `cronjob.executions` where
 `cronjob.status != "success"` instead is windowed, so a brief periodic failure flaps
 (fires, then auto-resolves when the window clears) rather than latching.
 
+That latching only works if a job keeps the same identity, so `cronjob.job_id` is built
+from the container **name** and the command — `dashboard-1:python-sync_emails.py` — not
+from the container id or the job's position in the label. A redeploy, a reordered label,
+or a rescheduled job therefore continues the same series instead of starting a new one,
+and the id names the job in the alert. Changing a job's *command* is a new identity, by
+design.
+
 **Traces**
 
 Each run produces one `cronjob.execute` span (service = the scheduler) carrying `cronjob.job_id`,

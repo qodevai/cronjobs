@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+- **Job ids are now stable across redeploys and label edits.** An id was
+  `<container-id>-job-<line-index>`, which moved on two axes: the container id is a fresh
+  SHA on every redeploy, and the line index shifts whenever a line above it is added,
+  removed, or reordered. Both re-identified the job in the `cronjob.last_run_failed`
+  series, so a job that was failing across a redeploy had its alert resolve and re-fire
+  under a new name — splitting its history and briefly hiding a real failure.
+
+  Ids are now `<container-name>:<command>`, e.g.
+  `linkedin-dashboard-dashboard-1:python-sync_outlook_emails.py`, so an alert also names
+  the job instead of a 64-character hash. The compose replica suffix is kept
+  deliberately: jobs live in a dict keyed by id, so collapsing `-1`/`-2` would let one
+  replica's job silently overwrite the other's. Where slugging is ambiguous — the same
+  command on several schedules, or different commands that slug alike — each member gets
+  a digest of its own command and schedule, never its position, so reordering cannot swap
+  identities.
+
+  **Upgrade note:** this re-identifies every job once. An alert firing at the moment of
+  upgrade resolves as its old series stops being exported (the gauge prune from 2.3.2
+  handles that) and re-fires under the new id if the job is still failing. Upgrade while
+  the board is green.
+
 ## [2.3.2] - 2026-07-10
 
 ### Fixed
