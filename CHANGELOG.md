@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0] - 2026-09-29
+
 ### Changed
 - **Job ids are now stable across redeploys and label edits.** An id was
   `<container-id>-job-<line-index>`, which moved on two axes: the container id is a fresh
@@ -182,6 +184,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker socket read-only access
 - Minimal dependencies (aiodocker, python-dateutil)
 
+[2.4.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.4.0
 [2.3.1]: https://github.com/qodevai/cronjobs/releases/tag/v2.3.1
 [2.3.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.3.0
 [2.1.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.1.0
