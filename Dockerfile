@@ -1,5 +1,10 @@
 FROM python:3.12-alpine AS base
 
+# The floating base tag lags Alpine's security fixes between upstream rebuilds; upgrade them
+# here. Release builds run without the layer cache (docker-publish.yml), so this layer is
+# never reused from an older build.
+RUN apk upgrade --no-cache
+
 WORKDIR /app
 
 # Install uv

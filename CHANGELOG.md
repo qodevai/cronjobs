@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.1] - 2026-11-12
+
+### Security
+- Locked runtime dependencies updated for scanner findings: `certifi` 2026.6.17 →
+  2026.10.23 (critical), `aiohttp` 3.13.0 → 3.14.5 (with `yarl` 1.25.1) and `urllib3`
+  2.7.0 → 2.8.0 (high).
+- The image now runs `apk upgrade` on its Alpine base (krb5-libs, high), and release
+  builds skip the layer cache so that upgrade is never reused from an older build.
+
 ## [2.4.0] - 2026-09-29
 
 ### Changed
@@ -184,6 +193,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Docker socket read-only access
 - Minimal dependencies (aiodocker, python-dateutil)
 
+[2.4.1]: https://github.com/qodevai/cronjobs/releases/tag/v2.4.1
 [2.4.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.4.0
 [2.3.1]: https://github.com/qodevai/cronjobs/releases/tag/v2.3.1
 [2.3.0]: https://github.com/qodevai/cronjobs/releases/tag/v2.3.0
