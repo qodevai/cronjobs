@@ -47,3 +47,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+          # Release tags build fresh, so `apk upgrade` really takes Alpine's current fixes.
+          no-cache: ${{ startsWith(github.ref, 'refs/tags/') }}
